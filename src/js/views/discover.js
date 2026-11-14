@@ -44,8 +44,7 @@ export async function render(root) {
             ${icon('account')} 绑定平台账号
           </a>
         </div>
-        <img class="hero__deco" src="./assets/icon-512.png" alt=""
-             style="border-radius:48px;opacity:.13">
+        <img class="hero__deco" src="./assets/icon-512.png" alt="">
       </section>
 
       <section class="sponsor-entry">

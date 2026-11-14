@@ -198,6 +198,48 @@ img.is-broken {
 
 .view { animation: view-in 320ms var(--ease-emphasized) both; }
 
+/* --- 页面转场：按导航方向左右滑入 --- */
+.view.is-forward { animation: view-in-right 300ms var(--ease-emphasized) both; }
+.view.is-back    { animation: view-in-left 300ms var(--ease-emphasized) both; }
+@keyframes view-in-right {
+  from { opacity: 0; transform: translate3d(18px, 0, 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes view-in-left {
+  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --- 图片渐显，避免闪烁 --- */
+.track__cover,
+.tile__art img,
+.pl-head__cover img,
+.np-art img {
+  animation: img-fade 420ms var(--ease-decel) both;
+}
+@keyframes img-fade {
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --- 按压反馈 --- */
+.btn:active,
+.icon-btn:active,
+.chip:active,
+.rail__item:active,
+.transport__btn:active,
+.track:active {
+  transform: scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* --- 平滑滚动 --- */
+.tracklist,
+.tile-grid,
+.shelf {
+  -webkit-overflow-scrolling: touch;
+}
+
 .track {
   animation: row-in 260ms var(--ease-standard) backwards;
   animation-delay: calc(var(--i, 0) * 16ms);

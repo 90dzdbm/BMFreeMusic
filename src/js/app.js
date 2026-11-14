@@ -83,8 +83,21 @@ const VIEWS = {
 
 let cleanup = null;
 
+const NAV_ORDER = ['discover', 'search', 'library', 'transfer', 'accounts', 'settings'];
+let lastNavIndex = 0;
+
 async function route() {
   const { name, params } = parseHash();
+
+  // 按导航位置判断前进还是后退，给页面转场定方向
+  const navIdx = NAV_ORDER.indexOf(name);
+  let direction = '';
+  if (navIdx >= 0) {
+    if (navIdx > lastNavIndex) direction = 'is-forward';
+    else if (navIdx < lastNavIndex) direction = 'is-back';
+    lastNavIndex = navIdx;
+  }
+
   currentRoute = name;
 
   // 高亮导航
@@ -106,6 +119,10 @@ async function route() {
   }
 
   hydrateIcons(root);
+  if (direction) {
+    const v = root.querySelector('.view');
+    if (v) v.classList.add(direction);
+  }
   mainEl().scrollTop = 0;
   document.title = name === 'discover' ? 'BM Free Music' : titleOf(name);
 }

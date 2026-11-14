@@ -80,21 +80,9 @@ export async function render(root) {
         ${BINDABLE_SOURCES.map((key) => platformCard(key, accounts[key], native)).join('')}
       </div>
 
-      <section class="section" style="margin-top:var(--sp-8)">
-        <div class="section__head"><h2 class="section__title">关于凭证安全</h2></div>
-        <div class="about-card">
-          ${icon('info', 'icon-lg')}
-          <div>
-            <div style="font:var(--text-h3);margin-bottom:6px">只存在你自己的设备上</div>
-            <p style="color:var(--on-surface-muted);font-size:14px;line-height:1.7">
-              ${native
-                ? '网页登录在应用内完成，Cookie 由系统 WebView 的 CookieManager 抓取后写入本机 localStorage，不经过任何第三方服务器。'
-                : '所有 Cookie 仅写入浏览器 localStorage，并通过本地代理（127.0.0.1）转发给对应平台。'}
-              关掉页面即失效，清空应用数据即彻底删除。请不要在公共设备上绑定账号。
-            </p>
-          </div>
-        </div>
-      </section>
+      <p class="muted-note">
+        ${icon('info', 'icon-xs')} 凭证只存在本机，清空应用数据即删除
+      </p>
     </div>`;
 
   root.querySelector('#grid')?.addEventListener('click', async (e) => {

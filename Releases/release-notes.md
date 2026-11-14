@@ -1,5 +1,7 @@
 # BM Free Music v1.1.0
 
+> versionCode 110 / versionName 1.1.0
+
 ## 这次更新
 
 **新图标** — 换成 BM Free—music 的正式标识。

@@ -55,12 +55,13 @@
 }
 .hero__deco {
   position: absolute;
-  right: -40px;
+  right: -56px;
   top: 50%;
   transform: translateY(-50%);
-  width: 260px;
-  height: 260px;
-  opacity: .16;
+  width: clamp(150px, 19vw, 240px);
+  height: clamp(150px, 19vw, 240px);
+  border-radius: 24px;
+  opacity: .13;
   pointer-events: none;
 }
 
@@ -763,6 +764,13 @@
   height: 100%;
   object-fit: cover;
 }
+.np-art {
+  animation: art-pop 420ms var(--ease-emphasized) both;
+}
+@keyframes art-pop {
+  from { opacity: 0; transform: scale(.94) translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
 
 .np-info {
   display: flex;
@@ -1048,3 +1056,12 @@
 }
 .np-artist.is-link { cursor: pointer; }
 .np-artist.is-link:hover { color: var(--primary); text-decoration: underline; }
+
+.muted-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-6);
+  font: var(--text-caption);
+  color: var(--on-surface-muted);
+}

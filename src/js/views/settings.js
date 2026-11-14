@@ -190,7 +190,7 @@ export async function render(root) {
           <div class="about-card" style="border:none;padding:0;width:100%">
             <img src="./assets/icon-192.png" alt="" style="border-radius:14px;box-shadow:var(--shadow-1)">
             <div style="flex:1;min-width:0">
-              <div style="font:var(--text-h3);margin-bottom:4px">BM Free Music <span style="color:var(--on-surface-muted);font-weight:400;font-size:13px">v1.0.0</span></div>
+              <div style="font:var(--text-h3);margin-bottom:4px">BM Free Music <span style="color:var(--on-surface-muted);font-weight:400;font-size:13px">v1.1.0</span></div>
               <p style="color:var(--on-surface-muted);font-size:13px;line-height:1.7">
                 多平台聚合音乐播放器 · Material 3 设计语言 · 支持 PWA 安装
               </p>
