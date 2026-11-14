@@ -1,0 +1,31 @@
+# ---------- 构建环境（体积大，重新构建时自动下载） ----------
+.buildenv/
+
+# ---------- 构建中间产物 ----------
+android/build/
+# 构建时由 build-apk.sh 从根目录复制过来，不入库
+android/assets/
+
+# ---------- 二进制产物：走 GitHub Releases 分发，不进仓库 ----------
+*.apk
+*.aab
+*.idsig
+Releases/*.apk
+Releases/*.zip
+
+# ---------- 签名密钥：泄露等于别人能伪造更新 ----------
+android/bmfm.keystore
+*.keystore
+*.jks
+
+# ---------- 本地临时 ----------
+_shot/
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 本地笔记 ----------
+新版本改进建议.txt
+*.local.txt

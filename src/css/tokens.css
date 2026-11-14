@@ -1,0 +1,190 @@
+/* ==========================================================================
+   BM Free Music — Design Tokens
+   设计语言：Google Material 3（Gmail / Drive / Google One 2023+ 体系）
+   所有颜色走语义令牌，主题切换只改令牌，不改组件。
+   ========================================================================== */
+
+/* ---------- 1. 调色板（品牌原始色） ---------- */
+:root {
+  --google-blue-50:  #e8f0fe;
+  --google-blue-100: #d3e3fd;
+  --google-blue-200: #a8c7fa;
+  --google-blue-400: #4c8df6;
+  --google-blue-600: #1a73e8;
+  --google-blue-700: #0b57d0;
+  --google-blue-800: #0842a0;
+  --google-blue-900: #041e49;
+
+  --google-red-500:  #ea4335;
+  --google-yellow-500:#fbbc04;
+  --google-green-500: #34a853;
+
+  --grey-0:   #ffffff;
+  --grey-50:  #f8fafd;
+  --grey-100: #f0f4f9;
+  --grey-200: #e1e3e1;
+  --grey-300: #c4c7c5;
+  --grey-500: #747775;
+  --grey-600: #5f6368;
+  --grey-800: #2d2e30;
+  --grey-850: #232426;
+  --grey-900: #1e1f20;
+  --grey-950: #131314;
+  --grey-975: #0e0f10;
+
+  /* ---------- 2. 形状 ---------- */
+  --shape-xs: 4px;
+  --shape-sm: 8px;
+  --shape-md: 12px;
+  --shape-lg: 16px;
+  --shape-xl: 20px;
+  --shape-2xl: 28px;
+  --shape-3xl: 36px;
+  --shape-full: 999px;
+
+  /* ---------- 3. 间距（4px 基准） ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ---------- 4. 排版 ---------- */
+  --font-sans: "Google Sans", "Google Sans Text", "Product Sans", Roboto,
+               "Segoe UI Variable", "Segoe UI", "PingFang SC",
+               "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC",
+               system-ui, -apple-system, sans-serif;
+  --font-mono: "Roboto Mono", "Cascadia Code", Consolas, monospace;
+
+  --text-display: 400 clamp(28px, 3.2vw, 44px) / 1.16 var(--font-sans);
+  --text-h1:      500 28px / 1.25 var(--font-sans);
+  --text-h2:      500 22px / 1.3 var(--font-sans);
+  --text-h3:      500 17px / 1.4 var(--font-sans);
+  --text-body:    400 14px / 1.55 var(--font-sans);
+  --text-body-lg: 400 16px / 1.55 var(--font-sans);
+  --text-label:   500 13px / 1.4 var(--font-sans);
+  --text-caption: 400 12px / 1.4 var(--font-sans);
+
+  /* ---------- 5. 动效 ---------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-decel: cubic-bezier(0, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 380ms;
+
+  /* ---------- 6. 层级 ---------- */
+  --z-player: 60;
+  --z-nav: 40;
+  --z-dialog: 100;
+  --z-toast: 120;
+}
+
+/* ==========================================================================
+   亮色主题（默认）
+   ========================================================================== */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --primary:            var(--google-blue-700);
+  --primary-hover:      #0a4fbc;
+  --on-primary:         #ffffff;
+  --primary-container:  var(--google-blue-100);
+  --on-primary-container:var(--google-blue-900);
+  --primary-fixed:      var(--google-blue-600);
+
+  --secondary-container:#c2e7ff;
+  --on-secondary-container:#001d35;
+
+  --surface:            var(--grey-50);
+  --surface-1:          #ffffff;
+  --surface-2:          #f7f9fc;
+  --surface-3:          #eef2f8;
+  --surface-inverse:    var(--grey-900);
+
+  --surface-tint:       rgba(11, 87, 208, 0.06);
+  --surface-tint-strong:rgba(11, 87, 208, 0.10);
+
+  --on-surface:         #1f1f1f;
+  --on-surface-variant: #444746;
+  --on-surface-muted:   var(--grey-600);
+  --on-surface-inverse: #f2f2f2;
+
+  --outline:            #c8ccd2;
+  --outline-variant:    #e3e6ea;
+
+  --error:              #b3261e;
+  --error-container:    #f9dedc;
+  --success:            #1e8e3e;
+
+  --overlay:            rgba(32, 33, 36, 0.42);
+  --scrim:              rgba(32, 33, 36, 0.55);
+
+  --shadow-1: 0 1px 2px rgba(60, 64, 67, .18), 0 1px 3px 1px rgba(60, 64, 67, .08);
+  --shadow-2: 0 1px 3px rgba(60, 64, 67, .18), 0 4px 8px 3px rgba(60, 64, 67, .10);
+  --shadow-3: 0 4px 8px rgba(60, 64, 67, .18), 0 8px 24px 4px rgba(60, 64, 67, .12);
+
+  --skeleton:  linear-gradient(90deg, #eef1f5 25%, #f7f9fc 37%, #eef1f5 63%);
+  --scrollbar: rgba(60, 64, 67, .28);
+}
+
+/* ==========================================================================
+   暗色主题
+   ========================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --primary:            var(--google-blue-200);
+  --primary-hover:      #c2d9fb;
+  --on-primary:         #062e6f;
+  --primary-container:  var(--google-blue-800);
+  --on-primary-container:var(--google-blue-100);
+  --primary-fixed:      var(--google-blue-200);
+
+  --secondary-container:#004a77;
+  --on-secondary-container:#c2e7ff;
+
+  --surface:            var(--grey-950);
+  --surface-1:          var(--grey-900);
+  --surface-2:          var(--grey-850);
+  --surface-3:          var(--grey-800);
+  --surface-inverse:    #e3e3e3;
+
+  --surface-tint:       rgba(168, 199, 250, 0.08);
+  --surface-tint-strong:rgba(168, 199, 250, 0.14);
+
+  --on-surface:         #e3e3e3;
+  --on-surface-variant: #c4c7c5;
+  --on-surface-muted:   #9aa0a6;
+  --on-surface-inverse: #1f1f1f;
+
+  --outline:            #44474a;
+  --outline-variant:    #303134;
+
+  --error:              #f2b8b5;
+  --error-container:    #8c1d18;
+  --success:            #81c995;
+
+  --overlay:            rgba(0, 0, 0, 0.6);
+  --scrim:              rgba(0, 0, 0, 0.72);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5), 0 1px 3px 1px rgba(0, 0, 0, .3);
+  --shadow-2: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 8px 3px rgba(0, 0, 0, .35);
+  --shadow-3: 0 4px 8px rgba(0, 0, 0, .5), 0 8px 24px 4px rgba(0, 0, 0, .45);
+
+  --skeleton:  linear-gradient(90deg, #232426 25%, #2d2e30 37%, #232426 63%);
+  --scrollbar: rgba(232, 234, 237, .26);
+}
+
+/* 跟随系统 —— JS 会在 <html> 上解析成 light / dark，这里仅兜底 */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system-auto"] {
+    color-scheme: dark;
+  }
+}
