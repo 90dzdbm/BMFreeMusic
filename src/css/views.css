@@ -1114,16 +1114,15 @@
   transform: translateX(-50%);
   z-index: 150;
   max-width: 88vw;
-  padding: 10px 16px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.72);
+  padding: 8px 14px;
   color: #fff;
   text-align: center;
   pointer-events: none;
-  box-shadow: var(--shadow-2);
+  /* 无背景，只用阴影保证浅色壁纸上也看得清 */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .95), 0 0 8px rgba(0, 0, 0, .8);
 }
-.desklyrics__cur { font: 600 15px/1.5 var(--font-sans); }
-.desklyrics__next { font: 400 12px/1.5 var(--font-sans); color: rgba(255,255,255,.6); margin-top: 2px; }
+.desklyrics__cur { font: 600 16px/1.5 var(--font-sans); }
+.desklyrics__next { display: none; }
 
 /* --------------------------------------------------------------------------
    开屏页

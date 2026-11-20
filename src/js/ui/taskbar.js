@@ -75,7 +75,13 @@ function ensure() {
   fill = el.querySelector('.taskbar__fill');
   label = el.querySelector('.taskbar__label');
   sub = el.querySelector('.taskbar__sub');
-  document.body.appendChild(el);
+
+  // 放在 .app 的最前面 —— 它是 flex 列的第一个子元素，
+  // 会把顶栏整体往下推，所以永远不可能和搜索栏重叠。
+  // （之前是 position:fixed; top:0，结果直接盖在顶栏上）
+  const app = document.querySelector('.app');
+  if (app) app.insertBefore(el, app.firstChild);
+  else document.body.insertBefore(el, document.body.firstChild);
 }
 
 /** 刷新显示 */

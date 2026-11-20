@@ -20,16 +20,23 @@ const BRANCH = 'main';
 const RAW_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/latest.json`;
 const FALLBACK_URL = `https://github.com/${REPO}/raw/${BRANCH}/latest.json`;
 
-/** 公共加速代理，按可用性排序 */
+/**
+ * 公共 GitHub 加速代理，按本机实测可用性排序。
+ * 2026-11-20 实测：
+ *   gh-proxy.com  raw 200 且带 CORS 头，最稳，放第一个
+ *   ghproxy.cn    能通但有时返回 HTML 错误页（靠 JSON.parse 兜掉）
+ *   ghfast.top / ghproxy.cc / ghproxy.net 时通时不通
+ */
 const PROXIES = [
-  'https://ghfast.top/',
-  'https://ghproxy.net/',
   'https://gh-proxy.com/',
+  'https://ghproxy.cn/',
+  'https://ghfast.top/',
   'https://ghproxy.cc/',
+  'https://ghproxy.net/',
 ];
 
-const CURRENT_CODE = 130;
-const CURRENT_NAME = '1.3.0';
+const CURRENT_CODE = 140;
+const CURRENT_NAME = '1.4.0';
 
 /* ------------------------------------------------------------------ */
 
@@ -50,19 +57,47 @@ async function fetchJSON(url, timeout = 8000) {
   }
 }
 
-/** 逐个尝试代理，返回 { data, via } */
-async function fetchLatest() {
+/**
+ * 先探一下代理本身通不通（HEAD 一下代理根路径），通不过就不浪费时间去取文件。
+ * 境内直连 GitHub 基本靠不住，所以顺序是：代理 -> 直连 raw -> github raw。
+ */
+async function pingProxy(base, timeout = 4000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(base, {
+      method: 'HEAD',
+      signal: ctrl.signal,
+      cache: 'no-store',
+      mode: 'cors',
+    });
+    // 405/403 也说明域名可达，代理只是不接受这个方法
+    return res.status < 500 || res.status === 405;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 逐个尝试代理，返回 { data, base, via } */
+async function fetchLatest(onStep) {
   for (const p of PROXIES) {
     try {
+      if (onStep) onStep(`正在连接加速代理 ${p.replace('https://', '').replace(/\/$/, '')}`);
+      // 先探连通性，不通就立刻换下一个
+      if (!(await pingProxy(p))) continue;
       const data = await fetchJSON(p + RAW_URL, 6000);
       if (data && data.version) return { data, base: p, via: 'proxy' };
     } catch { /* 换下一个代理 */ }
   }
   try {
+    if (onStep) onStep('代理不可用，尝试直连 GitHub');
     const data = await fetchJSON(RAW_URL, 8000);
     if (data && data.version) return { data, base: '', via: 'direct' };
   } catch { /* 继续 */ }
   try {
+    if (onStep) onStep('尝试备用地址');
     const data = await fetchJSON(FALLBACK_URL, 8000);
     if (data && data.version) return { data, base: '', via: 'gh' };
   } catch { /* 全挂 */ }
@@ -108,10 +143,10 @@ function showGithubUnreachable() {
 
 /* ------------------------------------------------------------------ */
 
-export async function checkUpdate({ silent = true } = {}) {
+export async function checkUpdate({ silent = true, onStep } = {}) {
   let hit;
   try {
-    hit = await fetchLatest();
+    hit = await fetchLatest(onStep);
   } catch {
     hit = null;
   }
@@ -214,7 +249,10 @@ export function initUpdateCheck() {
   if (Date.now() - last < 12 * 3600 * 1000) return;
   setTimeout(() => {
     const t = taskbar.push('正在检查更新', { indeterminate: true });
-    checkUpdate({ silent: true }).then((r) => {
+    checkUpdate({
+      silent: true,
+      onStep: (msg) => t.setMessage(msg),
+    }).then((r) => {
       if (r) {
         store.setSettings({ lastUpdateCheck: Date.now() });
         t.done('检查到新版本');

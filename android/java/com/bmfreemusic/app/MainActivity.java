@@ -336,9 +336,16 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void updateDeskLyrics(String current, String next) {
+        public void updateDeskLyrics(String current) {
             LyricsService s = LyricsService.instance;
-            if (s != null) s.update(current, next);
+            if (s != null) s.update(current);
+        }
+
+        /** 悬浮窗是否已经挂上（前端用来判断要不要重试） */
+        @JavascriptInterface
+        public boolean deskLyricsReady() {
+            LyricsService s = LyricsService.instance;
+            return s != null;
         }
 
         /** 当前配置文件的实际路径，设置页里给用户看 */
@@ -754,16 +761,20 @@ public class MainActivity extends Activity {
     protected void onStop() {
         super.onStop();
         flushWebStore();
+        // 退到后台，桌面歌词悬浮窗才显示出来
+        LyricsService.notifyForeground(this, false);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web != null) web.onResume();
+        LyricsService.notifyForeground(this, true);
     }
 
     @Override
     protected void onDestroy() {
+        LyricsService.stop(this);
         if (server != null) server.stop();
         if (web != null) {
             try {

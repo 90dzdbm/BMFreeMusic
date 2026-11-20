@@ -860,22 +860,21 @@ textarea.input {
    顶部任务进度条
    ========================================================================== */
 .taskbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 200;
-  background: var(--surface);
-  border-bottom: 1px solid var(--outline-variant);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
-  transform: translateY(-102%);
-  transition: transform var(--dur-base) var(--ease-standard);
-  pointer-events: none;
+  /* 放在 .app 的最前面，作为普通 flex 子项，不覆盖顶栏 */
+  flex: 0 0 auto;
+  width: 100%;
+  max-height: 0;
   overflow: hidden;
+  background: var(--surface-1);
+  border-bottom: 1px solid transparent;
+  transition: max-height var(--dur-base) var(--ease-standard),
+              border-color var(--dur-base) var(--ease-standard);
+  pointer-events: none;
 }
 
 .taskbar.is-visible {
-  transform: translateY(0);
+  max-height: 48px;
+  border-bottom-color: var(--outline-variant);
   pointer-events: auto;
 }
 

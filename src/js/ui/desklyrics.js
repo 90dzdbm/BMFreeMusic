@@ -1,8 +1,12 @@
 /**
  * ui/desklyrics.js — 桌面歌词
  *
- * APK 里用原生悬浮窗（LyricsService）显示当前歌词；
- * 浏览器里退化成页面内的一个浮动小窗，行为一致。
+ * APK 里用原生悬浮窗（LyricsService）显示当前这一句歌词：
+ *   - 只显示当前一句，没有背景
+ *   - 可以拖动（原生层实现的）
+ *   - 软件在前台时自动隐藏
+ *
+ * 浏览器里退化成页面内的浮动小窗（只在页面切到后台时显示）。
  *
  * 用法：
  *   import { deskLyrics } from './ui/desklyrics.js';
@@ -26,27 +30,26 @@ function bridge() {
   }
 }
 
-/** 取当前歌词行与下一行 */
-function currentLines() {
+/** 取当前歌词行（只取当前这一句） */
+function currentLine() {
   const lines = player.lyric?.lines || [];
-  if (!lines.length) return { cur: '', next: '' };
+  if (!lines.length) return '';
   const idx = Math.max(0, player.currentLyricIndex());
-  return {
-    cur: lines[idx]?.text || '',
-    next: lines[idx + 1]?.text || '',
-  };
+  return lines[idx]?.text || '';
 }
 
 function push() {
-  const { cur, next } = currentLines();
+  const cur = currentLine();
   const b = bridge();
   if (b) {
-    b.updateDeskLyrics(cur, next);
+    try {
+      b.updateDeskLyrics(cur);
+    } catch { /* noop */ }
     return;
   }
   if (domNode) {
-    domNode.querySelector('.desklyrics__cur').textContent = cur || '♪';
-    domNode.querySelector('.desklyrics__next').textContent = next || '';
+    const el = domNode.querySelector('.desklyrics__cur');
+    if (el) el.textContent = cur || '♪';
   }
 }
 
@@ -57,21 +60,27 @@ function onTime() {
   push();
 }
 
-/** 浏览器里的浮动小窗 */
+/** 浏览器里的浮动小窗（软件在前台时隐藏，页面在后台才显示） */
 function mountDom() {
   if (domNode || bridge()) return;
   domNode = document.createElement('div');
   domNode.className = 'desklyrics';
   domNode.id = 'desklyrics';
-  domNode.innerHTML = `
-    <div class="desklyrics__cur"></div>
-    <div class="desklyrics__next"></div>`;
+  domNode.innerHTML = `<div class="desklyrics__cur"></div>`;
   document.body.appendChild(domNode);
+  syncDomVisibility();
 }
 
 function unmountDom() {
   domNode?.remove();
   domNode = null;
+}
+
+function syncDomVisibility() {
+  if (!domNode) return;
+  // 页面可见 = 软件在前台 → 隐藏；页面隐藏 = 切到后台 → 显示
+  const hidden = document.visibilityState === 'hidden';
+  domNode.style.display = hidden ? '' : 'none';
 }
 
 export const deskLyrics = {
@@ -121,6 +130,7 @@ export const deskLyrics = {
     offs.push(player.on('time', onTime));
     offs.push(player.on('lyric', () => { lastIdx = -1; push(); }));
     offs.push(player.on('track', () => { lastIdx = -1; push(); }));
+    document.addEventListener('visibilitychange', syncDomVisibility);
     push();
     return true;
   },
@@ -130,6 +140,7 @@ export const deskLyrics = {
     enabled = false;
     offs.forEach((fn) => fn());
     offs = [];
+    document.removeEventListener('visibilitychange', syncDomVisibility);
     const b = bridge();
     if (b) {
       try { b.disableDeskLyrics?.(); } catch { /* noop */ }

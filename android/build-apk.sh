@@ -93,9 +93,25 @@ echo "  源文件: $(wc -l < build/sources.txt) 个"
   -encoding UTF-8 -nowarn \
   -d build/classes \
   @build/sources.txt 2>&1 | grep -v "deprecat\|ע:" || true
-# javac 有错就必须停，否则会拿旧的 classes.dex 继续打包（曾经踩过）
+# javac 有错就必须停：只看 class 数量不够（一个文件编译失败，其它照样能编出十几个 class）
 if [ "$(find build/classes -name '*.class' 2>/dev/null | wc -l)" -lt 10 ]; then
   echo "  ✘ javac 失败，classes 数量异常，终止构建" >&2
+  exit 1
+fi
+# 每个源文件都必须有对应的 class，否则视为编译失败
+MISSING=0
+while read -r src; do
+  rel="${src%.java}"
+  rel="${rel#java/}"          # 源码在 java/ 下，但 javac 按包名输出
+  rel="${rel#build/gen/}"
+  cls="build/classes/${rel}.class"
+  if [ ! -f "$cls" ]; then
+    echo "  ✘ 缺少 class: $cls（源文件编译失败）" >&2
+    MISSING=$((MISSING+1))
+  fi
+done < build/sources.txt
+if [ "$MISSING" -gt 0 ]; then
+  echo "  ✘ javac 有 $MISSING 个源文件编译失败，终止构建" >&2
   exit 1
 fi
 echo "  class: $(find build/classes -name '*.class' | wc -l) 个"
