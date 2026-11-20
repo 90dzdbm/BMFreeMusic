@@ -31,6 +31,11 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,11 +57,13 @@ public class MainActivity extends Activity {
     private static final Map<String, String> LOGIN_URLS = new HashMap<>();
     private static final Map<String, String[]> LOGIN_KEYS = new HashMap<>();
     static {
+        // 直接指向各平台的登录页，而不是首页——首页要用户自己找登录按钮，
+        // 而且移动版首页常常把入口藏在抽屉里，等于点进去什么也干不了。
         LOGIN_URLS.put("netease", "https://music.163.com/#/login");
-        LOGIN_URLS.put("qq", "https://y.qq.com/");
-        LOGIN_URLS.put("kugou", "https://www.kugou.com/");
-        LOGIN_URLS.put("kuwo", "https://www.kuwo.cn/");
-        LOGIN_URLS.put("migu", "https://music.migu.cn/v3/");
+        LOGIN_URLS.put("qq", "https://y.qq.com/portal/profile.html");
+        LOGIN_URLS.put("kugou", "https://m.kugou.com/user/login");
+        LOGIN_URLS.put("kuwo", "https://www.kuwo.cn/login");
+        LOGIN_URLS.put("migu", "https://music.migu.cn/v3/personal/login");
         LOGIN_URLS.put("bilibili", "https://passport.bilibili.com/login");
 
         LOGIN_KEYS.put("netease", new String[]{"MUSIC_U"});
@@ -112,7 +119,16 @@ public class MainActivity extends Activity {
             s.setUseWideViewPort(false);        // 1 CSS px = 1 dp
             s.setLoadWithOverviewMode(false);   // 不为了「一屏显示」而整页缩小
 
-            s.setCacheMode(WebSettings.LOAD_DEFAULT);
+            // 覆盖安装不完整的最常见原因：WebView 缓存目录在升级后仍然保留，
+            // 旧 JS/CSS 被继续命中，用户看到的就是「装了新包但没变化」。
+            // 这里直接不让它缓存任何东西。
+            s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+            try {
+                web.clearCache(true);
+                web.clearFormData();
+                web.clearHistory();
+                web.clearSslPreferences();
+            } catch (Exception ignored) { }
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
             s.setUserAgentString(
                     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
@@ -132,6 +148,13 @@ public class MainActivity extends Activity {
 
             web.addJavascriptInterface(new NativeBridge(), "BMFMAndroid");
             web.loadUrl("http://127.0.0.1:" + port + "/index.html");
+            // 装完新包首次启动也清一次缓存
+            web.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try { web.clearCache(true); } catch (Exception ignored) { }
+                }
+            }, 1500);
 
             setupPlaybackService();
             requestNotifyPermission();
@@ -232,7 +255,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String loadStore() {
             try {
-                return prefs().getString(KEY_STATE, "");
+                return configStore().load();
             } catch (Exception e) {
                 return "";
             }
@@ -242,15 +265,90 @@ public class MainActivity extends Activity {
         public void saveStore(String json) {
             if (json == null || json.length() < 2) return;
             try {
-                prefs().edit().putString(KEY_STATE, json).apply();
+                configStore().save(json);
             } catch (Exception ignored) { }
         }
 
         @JavascriptInterface
         public void clearStore() {
             try {
-                prefs().edit().remove(KEY_STATE).apply();
+                configStore().clear();
             } catch (Exception ignored) { }
+        }
+
+        /* ---------------- 开屏媒体 ---------------- */
+
+        /** 前端把文件读成 base64 传过来，落到 手机存储/BMFreeMusic/ */
+        @JavascriptInterface
+        public String saveMedia(final String filename, final String mime, final String base64) {
+            if (base64 == null || base64.length() < 8) return null;
+            try {
+                byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+                return configStore().saveMedia(filename, mime, data);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** 媒体文件的可访问地址 */
+        @JavascriptInterface
+        public String mediaUrl(final String name) {
+            if (name == null || name.isEmpty()) return null;
+            try {
+                File f = configStore().mediaFile(name);
+                if (f == null) return null;
+                return "http://127.0.0.1:" + server.port + "/api/media?f=" + Uri.encode(f.getName());
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+
+        /* ---------------- 桌面歌词 ---------------- */
+
+        @JavascriptInterface
+        public boolean canDrawOverlay() {
+            return LyricsService.canDraw(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void requestOverlayPermission() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    LyricsService.requestPermission(MainActivity.this);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void enableDeskLyrics() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    LyricsService.start(MainActivity.this);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void disableDeskLyrics() {
+            LyricsService.stop(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void updateDeskLyrics(String current, String next) {
+            LyricsService s = LyricsService.instance;
+            if (s != null) s.update(current, next);
+        }
+
+        /** 当前配置文件的实际路径，设置页里给用户看 */
+        @JavascriptInterface
+        public String configPath() {
+            try {
+                return configStore().primaryPath();
+            } catch (Exception ignored) {
+                return "";
+            }
         }
 
         /** 播放状态推给通知栏 */
@@ -301,6 +399,73 @@ public class MainActivity extends Activity {
             });
         }
 
+        /**
+         * 下载新版本并拉起安装器。
+         * 自己用 HttpURLConnection 下而不是丢给 DownloadManager：
+         * 需要在下载结束后立刻装、并把进度回传给页面。
+         */
+        @JavascriptInterface
+        public void updateApk(final String url, final String filename) {
+            if (url == null || url.isEmpty()) return;
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    HttpURLConnection conn = null;
+                    try {
+                        conn = (HttpURLConnection) new URL(url).openConnection();
+                        conn.setConnectTimeout(20000);
+                        conn.setReadTimeout(40000);
+                        conn.setInstanceFollowRedirects(true);
+                        conn.setRequestProperty("User-Agent",
+                                "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36");
+                        conn.connect();
+                        int code = conn.getResponseCode();
+                        if (code != 200) {
+                            toastUi("更新下载失败：HTTP " + code);
+                            return;
+                        }
+                        int total = conn.getContentLength();
+                        File out = new File(getCacheDir(), "update.apk");
+                        if (out.exists()) out.delete();
+
+                        InputStream in = conn.getInputStream();
+                        FileOutputStream fos = new FileOutputStream(out);
+                        byte[] buf = new byte[16384];
+                        long done = 0;
+                        int lastPct = -5;
+                        int n;
+                        while ((n = in.read(buf)) > 0) {
+                            fos.write(buf, 0, n);
+                            done += n;
+                            if (total > 0) {
+                                int pct = (int) (done * 100 / total);
+                                if (pct - lastPct >= 5) {
+                                    lastPct = pct;
+                                    notifyProgress(pct);
+                                }
+                            }
+                        }
+                        fos.flush();
+                        fos.close();
+                        in.close();
+                        conn.disconnect();   // 下载结束立刻断开，不再占用代理连接
+                        conn = null;
+
+                        if (out.length() < 50000) {
+                            toastUi("更新包不完整，请重试");
+                            return;
+                        }
+                        notifyProgress(100);
+                        installApk();
+                    } catch (Exception e) {
+                        toastUi("更新下载失败：" + e.getMessage());
+                    } finally {
+                        if (conn != null) conn.disconnect();
+                    }
+                }
+            }).start();
+        }
+
         @JavascriptInterface
         public void hidePlayback() {
             runOnUiThread(new Runnable() {
@@ -319,6 +484,14 @@ public class MainActivity extends Activity {
     private static final String PREF_NAME = "bmfm_store";
     private static final String KEY_STATE = "state_json";
 
+    private ConfigStore configStore;
+
+    /** 配置存储：优先 手机存储/BMFreeMusic/，放不下再退到别的统一路径 */
+    private ConfigStore configStore() {
+        if (configStore == null) configStore = new ConfigStore(this);
+        return configStore;
+    }
+
     private android.content.SharedPreferences prefs() {
         return getSharedPreferences(PREF_NAME, MODE_PRIVATE);
     }
@@ -335,6 +508,52 @@ public class MainActivity extends Activity {
     /* ======================================================================
        平台网页登录
        ====================================================================== */
+    private void toastUi(final String msg) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void notifyProgress(final int pct) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (web != null) {
+                        web.evaluateJavascript(
+                                "window.__bmfmUpdateProgress&&window.__bmfmUpdateProgress(" + pct + ")",
+                                null);
+                    }
+                } catch (Exception ignored) { }
+                if (pct == 100) {
+                    Toast.makeText(MainActivity.this, "下载完成，正在打开安装器", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void installApk() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setDataAndType(ApkProvider.CONTENT_URI,
+                            "application/vnd.android.package-archive");
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this,
+                            "无法拉起安装器：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
     private void showLogin(final String source) {
         final String url = LOGIN_URLS.get(source);
         if (url == null) {

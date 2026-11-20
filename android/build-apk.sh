@@ -93,6 +93,11 @@ echo "  源文件: $(wc -l < build/sources.txt) 个"
   -encoding UTF-8 -nowarn \
   -d build/classes \
   @build/sources.txt 2>&1 | grep -v "deprecat\|ע:" || true
+# javac 有错就必须停，否则会拿旧的 classes.dex 继续打包（曾经踩过）
+if [ "$(find build/classes -name '*.class' 2>/dev/null | wc -l)" -lt 10 ]; then
+  echo "  ✘ javac 失败，classes 数量异常，终止构建" >&2
+  exit 1
+fi
 echo "  class: $(find build/classes -name '*.class' | wc -l) 个"
 
 say "4/6 d8"

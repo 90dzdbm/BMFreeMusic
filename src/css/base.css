@@ -16,12 +16,14 @@ body {
 }
 
 html {
+  height: 100%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  touch-action: manipulation; /* 禁双击缩放 */
+  touch-action: manipulation; /* 禁双击缩放，但不拦滚动 */
 }
 
 body {
+  height: 100%;
   font: var(--text-body);
   color: var(--on-surface);
   background: var(--surface);
@@ -183,12 +185,13 @@ img.is-broken {
 }
 
 /* --- 入场动画 --- */
+/* 入场动画统一走「小幅位移 + 淡入」，位移越大越显得生硬 */
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(5px) scale(.998); }
   to   { opacity: 1; transform: none; }
 }
 @keyframes row-in {
-  from { opacity: 0; transform: translateY(7px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
 @keyframes cover-pop {
@@ -196,17 +199,17 @@ img.is-broken {
   to   { opacity: 1; transform: scale(1); }
 }
 
-.view { animation: view-in 320ms var(--ease-emphasized) both; }
+.view { animation: view-in 260ms var(--ease-emphasized-decel) both; }
 
 /* --- 页面转场：按导航方向左右滑入 --- */
-.view.is-forward { animation: view-in-right 300ms var(--ease-emphasized) both; }
-.view.is-back    { animation: view-in-left 300ms var(--ease-emphasized) both; }
+.view.is-forward { animation: view-in-right 240ms var(--ease-emphasized-decel) both; }
+.view.is-back    { animation: view-in-left 240ms var(--ease-emphasized-decel) both; }
 @keyframes view-in-right {
-  from { opacity: 0; transform: translate3d(18px, 0, 0); }
+  from { opacity: 0; transform: translate3d(10px, 0, 0); }
   to   { opacity: 1; transform: none; }
 }
 @keyframes view-in-left {
-  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
+  from { opacity: 0; transform: translate3d(-10px, 0, 0); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -237,17 +240,16 @@ img.is-broken {
 .tracklist,
 .tile-grid,
 .shelf {
-  -webkit-overflow-scrolling: touch;
 }
 
 .track {
-  animation: row-in 260ms var(--ease-standard) backwards;
-  animation-delay: calc(var(--i, 0) * 16ms);
+  animation: row-in 220ms var(--ease-emphasized-decel) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 12ms);
 }
 
 .tile {
-  animation: row-in 300ms var(--ease-standard) backwards;
-  animation-delay: calc(var(--i, 0) * 22ms);
+  animation: row-in 240ms var(--ease-emphasized-decel) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 16ms);
 }
 
 .playbar__cover img.is-changing {
@@ -257,3 +259,33 @@ img.is-broken {
 @media (prefers-reduced-motion: reduce) {
   .view, .track, .tile, .playbar__cover img.is-changing { animation: none !important; }
 }
+
+/* 主题切换期间临时关闭过渡，避免整页元素同时跑动画 */
+html.no-transition,
+html.no-transition *,
+html.no-transition *::before,
+html.no-transition *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+}
+
+/* ==========================================================================
+   低端设备减负（JS 按核心数/内存打上 .low-end）
+   ========================================================================== */
+html.low-end .track,
+html.low-end .tile,
+html.low-end .view,
+html.low-end .view.is-forward,
+html.low-end .view.is-back {
+  animation: none !important;
+}
+
+html.low-end .nowplaying__bg { display: none; }
+
+html.low-end .brand__mark,
+html.low-end .tile:hover,
+html.low-end .card {
+  box-shadow: none;
+}
+
+html.low-end .skeleton::after { animation-duration: 2.4s; }

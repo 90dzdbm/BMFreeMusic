@@ -15,11 +15,44 @@ export function resolvedTheme() {
   return pref === 'dark' ? 'dark' : 'light';
 }
 
+export const ACCENTS = [
+  { key: 'blue',   name: '谷歌蓝', color: '#0b57d0' },
+  { key: 'red',    name: '樱桃红', color: '#d93025' },
+  { key: 'green',  name: '青草绿', color: '#1e8e3e' },
+  { key: 'purple', name: '暮光紫', color: '#7627bb' },
+  { key: 'orange', name: '蜜橘橙', color: '#e8710a' },
+  { key: 'teal',   name: '湖水青', color: '#007b83' },
+  { key: 'pink',   name: '樱花粉', color: '#d01884' },
+];
+
+/** 换主题配色 */
+export function applyAccent(key) {
+  const k = ACCENTS.some((a) => a.key === key) ? key : 'blue';
+  store.setSettings({ accent: k });
+  document.documentElement.setAttribute('data-accent', k);
+  return k;
+}
+
+export function currentAccent() {
+  return store.settings.accent || 'blue';
+}
+
 export function applyTheme(pref) {
   if (pref) store.setSettings({ theme: pref });
+  applyAccent(store.settings.accent || 'blue');
   const mode = resolvedTheme();
+  if (mode === current && document.documentElement.hasAttribute('data-theme')) {
+    updateThemeButton(mode);
+    return mode;
+  }
   current = mode;
-  document.documentElement.setAttribute('data-theme', mode);
+
+  // 换主题等于给整页换一遍颜色变量，几百个元素同时跑 transition 会明显卡顿。
+  // 先关掉过渡，换完再打开。
+  const html = document.documentElement;
+  const hadNoTrans = html.classList.contains('no-transition');
+  html.classList.add('no-transition');
+  html.setAttribute('data-theme', mode);
   document.documentElement.style.colorScheme = mode;
 
   // 同步浏览器 UI 颜色：保留/创建一个不带 media 的 meta
@@ -34,6 +67,12 @@ export function applyTheme(pref) {
 
   updateThemeButton(mode);
   listeners.forEach((fn) => fn(mode));
+
+  if (!hadNoTrans) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => html.classList.remove('no-transition'));
+    });
+  }
   return mode;
 }
 

@@ -2,7 +2,7 @@
  * views/discover.js — 发现页
  */
 
-import { store, SOURCES } from '../core/store.js';
+import { store, SOURCES, GENRES } from '../core/store.js';
 import { getPlaylist, searchAll } from '../api/sources.js';
 import { imgUrl } from '../api/gateway.js';
 import {
@@ -107,7 +107,12 @@ export async function render(root) {
       pool.push(...(store.state.liked || []).slice(0, 20));
       pool.push(...(store.state.recent || []).slice(0, 20));
       if (pool.length < 8) {
-        const hits = await searchAll('热歌', { limit: 10 });
+        // 有偏好曲风就按它抓歌，没有就退回泛热歌
+        const picked = GENRES.filter((g) => (store.settings.prefGenres || []).includes(g.key));
+        const seed = picked.length
+          ? picked[Math.floor(Math.random() * picked.length)].q
+          : '热歌';
+        const hits = await searchAll(seed, { limit: 12 });
         pool.push(...hits);
       }
       const unique = Array.from(new Map(pool.map((t) => [t.key, t])).values());

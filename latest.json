@@ -1,0 +1,8 @@
+{
+  "version": "1.3.0",
+  "versionCode": 130,
+  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.3.0/BMFreeMusic-1.3.0.apk",
+  "size": 630732,
+  "sha256": "6f0805bacf8817f30fcfe3f4c6a02bc66e8623b6b7c6455a459b53a109ea5898",
+  "notes": "桌面歌词：悬浮窗显示当前歌词\n设置页改为多级菜单，新增外观页（主题配色、开屏图片/视频、播放器样式、歌词字号）\n屏幕顶部新增任务进度条，检查更新/下载/迁移都有实时进度\n搜索结果去重并把原曲排在前面（括号版、Live、翻唱等自动下沉）\n配置文件优先保存在 手机存储/BMFreeMusic/\n版本号递增到 1.3.0，修复无法覆盖安装旧包的问题"
+}

@@ -1,0 +1,2 @@
+cd8ec770b194317739012d07ea017d312bfc07c7dfcf1b8b50938d7fb40a7cfa  BMFreeMusic-1.2.0.apk
+2d8644d9a8d2ff59f2ebb937e0b170b75d710d3cc3ee987e5aeb1cdf6df50740  BMFreeMusic-1.2.0-source.zip

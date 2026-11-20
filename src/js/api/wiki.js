@@ -1,19 +1,15 @@
 /**
  * api/wiki.js — 歌手简介
  *
- * 主源：维基百科（zh / en）
- * 兜底：百度百科（国内网络可达，结构化字段更全）
+ * 单一数据源：百度百科开放接口。
+ * 维基百科在境内网络不可达（zh/en/wikidata/镜像全部超时），
+ * 留着只会让每次查简介先白等 9 秒，直接砍掉。
  */
 
 import { proxyJSON } from './gateway.js';
 import { stripHTML } from '../core/util.js';
 
 const cache = new Map();
-
-const WIKI_HOSTS = [
-  'https://zh.wikipedia.org',
-  'https://zh.wikipedia.org',   // 重试一次，网络抖动时有用
-];
 
 /**
  * @returns {Promise<{title,extract,description,thumb,url,fields,source}|null>}
@@ -23,51 +19,11 @@ export async function getArtistBio(rawName) {
   if (!name) return null;
   if (cache.has(name)) return cache.get(name);
 
-  let bio = await wikiBio(name);
-  if (!bio) bio = await baiduBio(name);
-
+  const bio = await baiduBio(name);
   cache.set(name, bio);
   return bio;
 }
 
-/* --------------------------------------------------------------------------
-   维基百科
-   -------------------------------------------------------------------------- */
-async function wikiBio(name) {
-  for (const host of WIKI_HOSTS) {
-    const hit = await wikiSummary(host, 'zh', name);
-    if (hit) return hit;
-  }
-  // 中文没有词条时试英文
-  return wikiSummary('https://en.wikipedia.org', 'en', name);
-}
-
-async function wikiSummary(host, lang, title) {
-  try {
-    const url = `${host}/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/\s+/g, '_'))}`;
-    const data = await proxyJSON(url, {
-      headers: { accept: 'application/json' },
-      timeout: 9000,
-    });
-    if (!data?.extract || data.type === 'disambiguation') return null;
-    return {
-      title: data.title || title,
-      extract: data.extract,
-      description: data.description || '',
-      thumb: data.thumbnail?.source || '',
-      url: data.content_urls?.desktop?.page ||
-        `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(data.title || title)}`,
-      fields: [],
-      source: lang === 'zh' ? '维基百科' : 'Wikipedia',
-    };
-  } catch {
-    return null;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   百度百科（兜底）
-   -------------------------------------------------------------------------- */
 async function baiduBio(name) {
   try {
     const url = 'https://baike.baidu.com/api/openapi/BaikeLemmaCardApi' +

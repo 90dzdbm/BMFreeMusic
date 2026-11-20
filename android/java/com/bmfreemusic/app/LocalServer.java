@@ -3,8 +3,12 @@ package com.bmfreemusic.app;
 import android.content.Context;
 import android.content.res.AssetManager;
 
+import android.os.Environment;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.RandomAccessFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +58,8 @@ public class LocalServer {
     private ServerSocket server;
     private ExecutorService pool;
     private volatile boolean running = true;
-    private int port;
+    /** 实际监听的端口（MainActivity 需要用来拼媒体地址） */
+    public volatile int port;
 
     public LocalServer(Context c) {
         this.ctx = c;
@@ -147,6 +152,8 @@ public class LocalServer {
             writeJson(out, 200, "{\"ok\":true,\"sites\":" + Aggregator.sitesJson() + "}");
             return;
         }
+        if (path.equals("/api/local")) { handleLocal(req, out); return; }
+        if (path.equals("/api/media")) { handleMedia(req, out); return; }
         if (path.equals("/api/aggr/search")) { handleAggrSearch(req, out); return; }
         if (path.equals("/api/aggr/play")) { handleAggrPlay(req, out); return; }
         if (path.startsWith("/api/")) {
@@ -189,9 +196,168 @@ public class LocalServer {
         }
     }
 
+    /**
+     * /api/media?f=<文件名>
+     * 开屏图/视频等用户自己的媒体文件，从 BMFreeMusic 目录里取。
+     */
+    private void handleMedia(Request req, OutputStream out) throws IOException {
+        String name = req.query.get("f");
+        if (name == null || name.isEmpty()) { writeText(out, 400, "missing f"); return; }
+        if (name.contains("/") || name.contains("\\") || name.contains("..")) {
+            writeText(out, 400, "bad name");
+            return;
+        }
+        File dir = new File(new File(Environment.getExternalStorageDirectory(), "BMFreeMusic"), name);
+        File f = dir.exists() ? dir : null;
+        if (f == null) {
+            File ext = ctx.getExternalFilesDir(null);
+            if (ext != null) {
+                File alt = new File(new File(ext, "BMFreeMusic"), name);
+                if (alt.exists()) f = alt;
+            }
+        }
+        if (f == null) {
+            File alt = new File(new File(ctx.getFilesDir(), "BMFreeMusic"), name);
+            if (alt.exists()) f = alt;
+        }
+        if (f == null || !f.isFile()) { writeText(out, 404, "not found"); return; }
+
+        long total = f.length();
+        long start = 0;
+        long end = total - 1;
+        boolean partial = false;
+
+        String range = req.header("range");
+        if (range != null && range.startsWith("bytes=")) {
+            String spec = range.substring(6).split(",")[0].trim();
+            int dash = spec.indexOf('-');
+            try {
+                if (dash > 0) {
+                    start = Long.parseLong(spec.substring(0, dash));
+                    if (dash < spec.length() - 1) end = Long.parseLong(spec.substring(dash + 1));
+                } else if (dash == 0 && spec.length() > 1) {
+                    long suffix = Long.parseLong(spec.substring(1));
+                    start = Math.max(0, total - suffix);
+                }
+            } catch (Exception ignored) { start = 0; end = total - 1; }
+            if (end >= total) end = total - 1;
+            if (start > end || start >= total) { writeText(out, 416, "range not satisfiable"); return; }
+            partial = true;
+        }
+
+        long len = end - start + 1;
+        StringBuilder sb = new StringBuilder();
+        sb.append("HTTP/1.1 ").append(partial ? 206 : 200)
+                .append(' ').append(statusText(partial ? 206 : 200)).append("\r\n");
+        sb.append("Content-Type: ").append(mimeOf(name)).append("\r\n");
+        sb.append("Accept-Ranges: bytes\r\n");
+        sb.append("Content-Length: ").append(len).append("\r\n");
+        if (partial) {
+            sb.append("Content-Range: bytes ").append(start).append('-')
+                    .append(end).append('/').append(total).append("\r\n");
+        }
+        sb.append("Cache-Control: public, max-age=86400\r\n");
+        sb.append("Access-Control-Allow-Origin: *\r\n\r\n");
+        out.write(sb.toString().getBytes("UTF-8"));
+
+        RandomAccessFile raf = null;
+        try {
+            raf = new RandomAccessFile(f, "r");
+            raf.seek(start);
+            byte[] buf = new byte[16384];
+            long remain = len;
+            while (remain > 0) {
+                int n = raf.read(buf, 0, (int) Math.min(buf.length, remain));
+                if (n < 0) break;
+                out.write(buf, 0, n);
+                remain -= n;
+            }
+            out.flush();
+        } finally {
+            try { if (raf != null) raf.close(); } catch (Exception ignored) { }
+        }
+    }
+
     /* ======================================================================
        /api/stream —— 音频流
        ====================================================================== */
+    /**
+     * /api/local?f=<文件名>
+     * 把 Music 目录里已下载的曲目回流给播放器。
+     * 只接受纯文件名，带路径分隔符或 .. 一律拒绝；支持 Range，能拖动进度。
+     */
+    private void handleLocal(Request req, OutputStream out) throws IOException {
+        String name = req.query.get("f");
+        if (name == null || name.isEmpty()) { writeText(out, 400, "missing f"); return; }
+        if (name.contains("/") || name.contains("\\") || name.contains("..")) {
+            writeText(out, 400, "bad name");
+            return;
+        }
+        File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
+        File f = new File(dir, name);
+        if (!f.exists() || !f.isFile()) { writeText(out, 404, "not found"); return; }
+
+        long total = f.length();
+        long start = 0;
+        long end = total - 1;
+        boolean partial = false;
+
+        String range = req.header("range");
+        if (range != null && range.startsWith("bytes=")) {
+            String spec = range.substring(6).split(",")[0].trim();
+            int dash = spec.indexOf('-');
+            try {
+                if (dash > 0) {
+                    start = Long.parseLong(spec.substring(0, dash));
+                    if (dash < spec.length() - 1) end = Long.parseLong(spec.substring(dash + 1));
+                } else if (dash == 0 && spec.length() > 1) {
+                    long suffix = Long.parseLong(spec.substring(1));
+                    start = Math.max(0, total - suffix);
+                }
+            } catch (Exception ignored) { start = 0; end = total - 1; }
+            if (end >= total) end = total - 1;
+            if (start > end || start >= total) {
+                writeText(out, 416, "range not satisfiable");
+                return;
+            }
+            partial = true;
+        }
+
+        long len = end - start + 1;
+        StringBuilder sb = new StringBuilder();
+        sb.append("HTTP/1.1 ").append(partial ? 206 : 200)
+                .append(' ').append(statusText(partial ? 206 : 200)).append("\r\n");
+        sb.append("Content-Type: ").append(mimeOf(name)).append("\r\n");
+        sb.append("Accept-Ranges: bytes\r\n");
+        sb.append("Content-Length: ").append(len).append("\r\n");
+        if (partial) {
+            sb.append("Content-Range: bytes ").append(start).append('-')
+                    .append(end).append('/').append(total).append("\r\n");
+        }
+        sb.append("Cache-Control: public, max-age=86400\r\n");
+        sb.append("Access-Control-Allow-Origin: *\r\n\r\n");
+        out.write(sb.toString().getBytes("UTF-8"));
+
+        RandomAccessFile raf = null;
+        try {
+            raf = new RandomAccessFile(f, "r");
+            raf.seek(start);
+            byte[] buf = new byte[16384];
+            long remain = len;
+            while (remain > 0) {
+                int n = raf.read(buf, 0, (int) Math.min(buf.length, remain));
+                if (n < 0) break;
+                out.write(buf, 0, n);
+                remain -= n;
+            }
+            out.flush();
+        } finally {
+            if (raf != null) {
+                try { raf.close(); } catch (Exception ignored) { }
+            }
+        }
+    }
+
     private void handleStream(Request req, OutputStream out) throws IOException {
         String target = req.query.get("u");
         String referer = req.query.getOrDefault("ref", "");
@@ -317,7 +483,12 @@ public class LocalServer {
 
         Map<String, String> h = new HashMap<>();
         h.put("content-type", mimeOf(rel));
-        h.put("cache-control", rel.endsWith(".html") ? "no-cache" : "public, max-age=3600");
+        // 覆盖安装后 WebView 的缓存目录会被保留下来，
+        // 如果这里还允许强缓存，升级后加载的还是旧 JS/CSS，
+        // 表现就是「装了新包但界面没变」。本地读 assets 不要钱，一律不缓存。
+        h.put("cache-control", "no-store, no-cache, must-revalidate");
+        h.put("pragma", "no-cache");
+        h.put("expires", "0");
         writeResponse(out, 200, h, bos.toByteArray());
     }
 
@@ -333,6 +504,10 @@ public class LocalServer {
         if (p.endsWith(".webp")) return "image/webp";
         if (p.endsWith(".ico")) return "image/x-icon";
         if (p.endsWith(".mp3")) return "audio/mpeg";
+        if (p.endsWith(".webm")) return "video/webm";
+        if (p.endsWith(".mp4")) return "video/mp4";
+        if (p.endsWith(".mov")) return "video/quicktime";
+        if (p.endsWith(".gif")) return "image/gif";
         return "application/octet-stream";
     }
 

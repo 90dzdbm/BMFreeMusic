@@ -13,7 +13,7 @@ import { player } from '../core/player.js';
 import { toast, toastSuccess } from '../ui/toast.js';
 
 export async function render(root, params = {}) {
-  const tab = ['liked', 'playlists', 'recent'].includes(params.tab) ? params.tab : 'liked';
+  const tab = ['liked', 'playlists', 'recent', 'downloads'].includes(params.tab) ? params.tab : 'liked';
   const s = store.state;
 
   root.innerHTML = `
@@ -38,6 +38,9 @@ export async function render(root, params = {}) {
         </button>
         <button class="chip ${tab === 'recent' ? 'is-active' : ''}" data-tab="recent">
           ${icon('history', 'icon-xs')} 最近播放
+        </button>
+        <button class="chip ${tab === 'downloads' ? 'is-active' : ''}" data-tab="downloads">
+          ${icon('download', 'icon-xs')} 我下载的
         </button>
       </div>
 
@@ -85,6 +88,34 @@ export async function render(root, params = {}) {
             </div>
           </div>`).join('')}
       </div>`;
+    }
+  }
+
+  if (tab === 'downloads') {
+    const list = (store.settings.downloads || []).slice().reverse();
+    if (!list.length) {
+      body.innerHTML = emptyState({
+        iconName: 'download',
+        title: '还没有下载的歌曲',
+        desc: '在曲目菜单里点「下载」，之后听它就优先走本地文件',
+      });
+    } else {
+      const tracks = list.map((d) => ({
+        key: d.key,
+        id: d.id || d.key.split(':')[1],
+        source: d.source,
+        name: d.name,
+        artist: d.artist || '未知歌手',
+        album: d.album || '',
+        duration: d.duration || 0,
+        cover: d.cover || '',
+        extra: { downloaded: true, file: d.file },
+      }));
+      body.innerHTML = `
+        <div class="health-banner" style="background:var(--primary-container);color:var(--on-primary-container)">
+          共 ${list.length} 首已下载 · 播放时优先使用本地文件，不联网
+        </div>
+        <div class="tracklist">${tracklistHTML(tracks, { showAlbum: true })}</div>`;
     }
   }
 

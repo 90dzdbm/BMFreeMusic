@@ -12,6 +12,9 @@ import { coverOf, placeholderCover } from '../ui/components.js';
 import { esc, fmtTime } from '../core/util.js';
 import { icon } from '../ui/icons.js';
 import { showArtistBio } from '../ui/artistbio.js';
+import { openMenu } from '../ui/components.js';
+import { deskLyrics } from '../ui/desklyrics.js';
+import { toast } from '../ui/toast.js';
 
 let layer = null;
 let offs = [];
@@ -41,6 +44,7 @@ export function openNowPlaying() {
         <button class="icon-btn" id="npClose" title="收起">${icon('collapse')}</button>
         <span class="nowplaying__label" id="npLabel">正在播放</span>
         <button class="icon-btn" id="npQueue" title="播放队列">${icon('queue')}</button>
+        <button class="icon-btn" id="npMore" title="更多">${icon('more')}</button>
       </div>
 
       <div class="nowplaying__body">
@@ -74,6 +78,7 @@ export function openNowPlaying() {
     </div>`;
 
   document.body.appendChild(layer);
+  applyNpStyle();
   bind();
   syncTrack(player.current);
   renderLyric(player.lyric);
@@ -106,6 +111,11 @@ function bind() {
   const $ = (id) => layer.querySelector(id);
 
   $('#npClose').addEventListener('click', closeNowPlaying);
+  $('#npMore').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openMoreMenu($('#npMore'));
+  });
+
   $('#npQueue').addEventListener('click', () => {
     document.getElementById('btnQueue')?.click();
   });
@@ -307,4 +317,73 @@ function toastMini(anchor, text) {
   if (getComputedStyle(anchor).position === 'static') anchor.style.position = 'relative';
   anchor.appendChild(tip);
   setTimeout(() => tip.remove(), 1400);
+}
+
+
+/* ==========================================================================
+   更多菜单：播放器样式 / 桌面歌词 / 字号
+   ========================================================================== */
+function openMoreMenu(anchor) {
+  const s = store.settings;
+  const style = s.npStyle || 'blur';
+
+  openMenu(anchor, [
+    {
+      icon: 'palette',
+      label: `播放器样式：${style === 'blur' ? '模糊' : style === 'gradient' ? '渐变' : '纯色'}`,
+      onClick: () => setNpStyle(style === 'blur' ? 'gradient' : style === 'gradient' ? 'plain' : 'blur'),
+    },
+    {
+      icon: 'font',
+      label: `歌词字号：${Number(s.npFontSize) || 16} px`,
+      onClick: () => setNpFontSize((Number(s.npFontSize) || 16) >= 28 ? 12 : (Number(s.npFontSize) || 16) + 2),
+    },
+    { separator: true },
+    {
+      icon: 'lyrics',
+      label: s.deskLyrics ? '关闭桌面歌词' : '开启桌面歌词',
+      onClick: () => toggleDeskLyrics(),
+    },
+    {
+      icon: 'settings',
+      label: '打开外观设置',
+      onClick: () => { location.hash = '#/settings/appearance'; },
+    },
+  ], { align: 'end' });
+}
+
+function setNpStyle(style) {
+  store.setSettings({ npStyle: style });
+  applyNpStyle();
+  toast( `播放器样式：${style === 'blur' ? '模糊' : style === 'gradient' ? '渐变' : '纯色'}`);
+}
+
+function setNpFontSize(size) {
+  const v = Math.min(28, Math.max(12, size));
+  store.setSettings({ npFontSize: v });
+  applyNpStyle();
+  toast( `歌词字号：${v} px`);
+}
+
+function applyNpStyle() {
+  const s = store.settings;
+  layer?.setAttribute('data-np-style', s.npStyle || 'blur');
+  layer?.style.setProperty('--np-font-size', `${Number(s.npFontSize) || 16}px`);
+}
+
+function toggleDeskLyrics() {
+  const on = !store.settings.deskLyrics;
+  if (on) {
+    const ok = deskLyrics.enable();
+    if (!ok) {
+      toast( '需要悬浮窗权限');
+      return;
+    }
+    store.setSettings({ deskLyrics: true });
+    toast( '桌面歌词已开启');
+  } else {
+    deskLyrics.disable();
+    store.setSettings({ deskLyrics: false });
+    toast( '桌面歌词已关闭');
+  }
 }

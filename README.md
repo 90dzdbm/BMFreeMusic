@@ -1,31 +1,20 @@
 # BM Free Music
 
-> 多平台聚合网络音乐播放器 · Material 3 设计 · 亮暗双主题 · 可安装 APK
+> 多平台聚合网络音乐播放器 · Material 3 设计 · 亮暗双主题 · 安卓应用
 
-一次搜索同时打九个来源的曲库，主音源放不了的会员曲目自动降级到第三方聚合站拿完整音频。桌面端跑本地 Node 服务，安卓端是一个装好就能用的 APK。
+一次搜索同时打九个来源的曲库，主音源放不了的会员曲目自动降级到第三方聚合站拿完整音频。装好即用，不需要电脑配合。
 
 ![首页](screenshots/home.png)
 
 ---
 
-## 两种形态
+## 安装
 
-### 网页版
-
-```bash
-cd BMFreeMusic
-node server/index.js
-```
-
-浏览器自动打开 `http://127.0.0.1:5173`。零依赖、零构建。Windows 下双击 **`start.bat`**。
-
-### 安卓 APK
-
-`Releases/BMFreeMusic-1.1.0.apk` — 0.57 MB，包名 `com.bmfreemusic.app`，Android 6.0+（minSdk 23 / targetSdk 34）。
+`Releases/BMFreeMusic-1.3.0.apk` — 0.62 MB，包名 `com.bmfreemusic.app`，Android 6.0+（minSdk 23 / targetSdk 34）。
 
 传到手机点击安装，允许「安装未知来源应用」。
 
-APK 内置一个用 Java 重写的迷你 HTTP 服务器（`android/java/.../LocalServer.java`），把 Node 服务的全部能力搬了过去：静态托管、`/api/raw` 反代、音频流 Range 转发、图片代理、聚合站适配。**前端代码在 APK 里一行没改**。
+APK 内置一个用 Java 写的迷你 HTTP 服务器（`android/java/.../LocalServer.java`），承担静态托管、`/api/raw` 反代、音频流 Range 转发、图片代理、聚合站适配、本地已下载文件回流。前端是一套纯静态文件，直接打进 assets。
 
 ---
 
@@ -73,9 +62,15 @@ APK 内置一个用 Java 重写的迷你 HTTP 服务器（`android/java/.../Loca
 
 **账号绑定** APK 里点「网页登录」直接打开平台官网，登录成功后自动抓取 Cookie。
 
-**歌手简介** 曲目菜单和播放页的歌手名都能点。维基百科优先，中文词条没有试英文；国内网络访问不了维基时退到百度百科，带结构化字段。
+**歌手简介** 曲目菜单和播放页的歌手名都能点，数据来自百度百科，带本名、外文名、国籍、出生日期等结构化字段。
 
-**下载** 曲目菜单「下载到本地」。APK 走系统 DownloadManager 存到 `Music/`，网页版走浏览器下载。
+**下载** 曲目菜单「下载到本地」，走系统 DownloadManager 存到 `Music/`。
+
+**下载过的歌优先本地** 播过的曲目会记进下载索引，下次播放直接读本地文件，不联网；文件被删了自动回落到在线音源。
+
+**偏好设置** 在设置里勾选偏好音源和偏好曲风。搜索和换源时偏好平台排前面，优先级略高于同分匹配；「随便听听」会按偏好曲风抓歌。
+
+**检查更新** 启动时经公共加速代理拉 `latest.json` 比对版本，有新版本弹窗，确认后直接下载并拉起安装器。12 小时内只查一次。
 
 **通知栏控制** 封面、歌名、歌手，三个按钮切换。锁屏和耳机线控一并接管。
 
@@ -244,7 +239,7 @@ curl "http://127.0.0.1:5173/api/aggr/play?site=gequbao&id=4190"
 | 咪咕 | `uid` / `token` |
 | 哔哩哔哩 | `SESSDATA` |
 
-**网页版**：F12 → Application → Cookies，拼成 `key=value; key2=value2` 粘进「粘贴 Cookie」。
+**手动粘贴**：登录网页版平台 → F12 → Application → Cookies，拼成 `key=value; key2=value2` 粘进「粘贴 Cookie」。
 
 两种方式最终都只写进本机，经本地代理转发，不上传任何第三方。
 
@@ -273,7 +268,7 @@ curl "http://127.0.0.1:5173/api/aggr/play?site=gequbao&id=4190"
 
 | 通道 | 位置 | 作用 |
 |---|---|---|
-| localStorage | WebView 数据目录 | 网页版与 APK 通用 |
+| localStorage | WebView 数据目录 | 页面侧主存储 |
 | SharedPreferences | APK 私有目录 `bmfm_store` | APK 专用，origin 变了也能恢复 |
 | 导出文件 | 用户自选 | 换设备用 |
 

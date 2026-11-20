@@ -17,6 +17,24 @@ export const SOURCES = {
   local: { name: '本地文件', short: '本地', color: '#0b57d0', logo: '本' },
 };
 
+/** 偏好曲风：key 用于存储，q 是实际丢给搜索引擎的关键词 */
+export const GENRES = [
+  { key: 'cn', name: '华语流行', q: '华语流行' },
+  { key: 'en', name: '欧美流行', q: '欧美流行' },
+  { key: 'jp', name: '日语', q: '日语歌曲' },
+  { key: 'kr', name: '韩语', q: '韩语歌曲' },
+  { key: 'rock', name: '摇滚', q: '摇滚' },
+  { key: 'folk', name: '民谣', q: '民谣' },
+  { key: 'electronic', name: '电子', q: '电子音乐' },
+  { key: 'rap', name: '说唱', q: '说唱' },
+  { key: 'guofeng', name: '古风', q: '古风' },
+  { key: 'jazz', name: '爵士', q: '爵士乐' },
+  { key: 'rnb', name: 'R&B', q: 'R&B' },
+  { key: 'acg', name: 'ACG', q: '动漫歌曲' },
+  { key: 'cantonese', name: '粤语', q: '粤语经典' },
+  { key: 'piano', name: '纯音乐', q: '纯音乐' },
+];
+
 export const ALL_SOURCE_KEYS = Object.keys(SOURCES);
 
 /** 第三方聚合站：能拿到转存的完整音频，适合在会员曲目上兜底 */
@@ -44,6 +62,28 @@ const DEFAULT_STATE = {
     apiBases: { netease: '', qq: '', kugou: '', kuwo: '', migu: '', bilibili: '' },
     showLyrics: true,
     animations: true,
+    // 偏好的音源：非空时搜索与换源都优先走这些平台
+    prefSources: [],
+    // 偏好的曲风：随便听听按这些关键词抓歌
+    prefGenres: [],
+    // 已下载到本机的曲目索引：key -> {name, path, savedAt}
+    downloads: [],
+    // 上次检查更新的时间戳，避免每次启动都请求
+    lastUpdateCheck: 0,
+    // 全屏播放页样式：blur 模糊封面 / gradient 渐变 / plain 纯色
+    npStyle: 'blur',
+    // 全屏播放页歌词字号（px）
+    npFontSize: 16,
+    // 桌面歌词开关
+    deskLyrics: false,
+    // 开屏页
+    splashEnabled: false,
+    splashMedia: '',        // 图片或视频的 URL/文件名
+    splashType: 'image',    // image | video
+    splashDuration: 2.5,    // 秒
+    splashMuted: true,      // 视频静音
+    // 播放器样式：classic 经典 / minimal 极简
+    playerStyle: 'classic',
   },
   accounts: {},
   liked: [],
@@ -171,7 +211,7 @@ class Store {
   /* ---------- 持久化 ---------- */
   save() {
     clearTimeout(this._saveTimer);
-    this._saveTimer = setTimeout(() => this.flush(), 120);
+    this._saveTimer = setTimeout(() => this.flush(), 400);
   }
 
   /** 立即落盘：同时写 localStorage 与原生存储 */
@@ -205,8 +245,20 @@ class Store {
 
   /* ---------- 设置 ---------- */
   setSettings(patch) {
+    // 值没变就别折腾：开关来回点、滑块抖动都会走到这里，
+    // 每次都 stringify 全量状态再写两处存储，状态一大就是肉眼可见的卡。
+    let changed = false;
+    for (const k of Object.keys(patch)) {
+      const a = this.state.settings[k];
+      const b = patch[k];
+      if (JSON.stringify(a) !== JSON.stringify(b)) { changed = true; break; }
+    }
+    if (!changed) return;
+
     this.state.settings = deepMerge(this.state.settings, patch);
-    this.flush();
+    // 设置项不是关键数据，交给 debounce 合并写入；
+    // 真正退到后台时 onPause 会强制 flush，不会丢。
+    this.save();
     this.emit('settings', this.state.settings);
   }
 

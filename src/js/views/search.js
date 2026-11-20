@@ -6,6 +6,7 @@ import { store, SOURCES } from '../core/store.js';
 import { searchAll } from '../api/sources.js';
 import { tracklistHTML, skeletonTracks, emptyState } from '../ui/components.js';
 import { esc } from '../core/util.js';
+import { dedupeAndRank, variantInfo } from '../core/ranking.js';
 import { icon } from '../ui/icons.js';
 import { toastError } from '../ui/toast.js';
 
@@ -72,6 +73,8 @@ export async function render(root, params) {
       } else {
         allResults = partial;
       }
+      // 去重 + 原曲优先排序
+      allResults = dedupeAndRank(allResults, store.settings.prefSources || []);
       paint();
     };
 
@@ -117,10 +120,13 @@ export async function render(root, params) {
     }
     const grouped = {};
     allResults.forEach((t) => { (grouped[t.source] ||= []).push(t); });
+    const variants = allResults.filter((t) => variantInfo(t).variant).length;
     const summary = Object.entries(grouped)
       .map(([s, arr]) => `${SOURCES[s]?.short || s} ${arr.length}`)
       .join(' · ');
-    meta.textContent = `${allResults.length} 条结果 — ${summary}`;
+    meta.textContent = variants
+      ? `${allResults.length} 条结果（${variants} 条为变体版本）— ${summary}`
+      : `${allResults.length} 条结果 — ${summary}`;
     body.innerHTML = tracklistHTML(allResults, { showAlbum: true });
     updateChips(grouped);
   }

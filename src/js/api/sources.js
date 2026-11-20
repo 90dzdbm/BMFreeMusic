@@ -647,7 +647,13 @@ export async function searchAll(keyword, opts = {}) {
   const limit = opts.limit || store.settings.searchLimit || 30;
   const page = opts.page || 1;
 
-  const results = await pMap(enabled, async (src) => {
+  // 偏好音源排到最前：并发队列先跑它们，交错合并时也先出它们的结果
+  const pref = new Set(store.settings.prefSources || []);
+  const ordered = Array.from(enabled).sort(
+    (a, b) => (pref.has(a) ? 0 : 1) - (pref.has(b) ? 0 : 1)
+  );
+
+  const results = await pMap(ordered, async (src) => {
     const impl = SOURCE_IMPL[src];
     if (!impl) return [];
     try {
@@ -681,7 +687,18 @@ export async function getPlaylist(source, id) {
   const impl = SOURCE_IMPL[source];
   if (!impl) throw new Error(`未知音源 ${source}`);
   if (!impl.playlist) throw new Error(`${SOURCES[source]?.name || source} 暂不支持歌单读取`);
-  return impl.playlist(id);
+  const list = await impl.playlist(id);
+  // 同一首歌在歌单里重复出现时去掉重复项
+  const seen = new Set();
+  const out = [];
+  for (const t of list) {
+    if (!t) continue;
+    const k = t.key || `${t.source}:${t.id}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+  }
+  return out;
 }
 
 /**
@@ -737,6 +754,18 @@ export async function resolveTrack(track, opts = {}) {
   if (track.source === 'local' && track.extra?.blobUrl) {
     return { url: track.extra.blobUrl, rawUrl: track.extra.blobUrl };
   }
+
+  // 下载过的曲目优先走本地文件，不走网络。
+  // 文件被删或路径失效时才回落到在线音源。
+  const localHit = (store.settings.downloads || []).find((d) => d.key === track.key && d.file);
+  if (localHit) {
+    const localUrl = `${store.settings.proxyPrefix || '/api'}/local?f=${encodeURIComponent(localHit.file)}`;
+    try {
+      if (await quickAudioCheck(localUrl, 5000)) {
+        return { url: localUrl, rawUrl: localUrl, isLocal: true };
+      }
+    } catch { /* 落回在线 */ }
+  }
   const impl = SOURCE_IMPL[track.source];
   if (!impl) throw new Error(`未知音源 ${track.source}`);
 
@@ -789,8 +818,10 @@ export async function resolveTrack(track, opts = {}) {
 
 /** 在其它常规音源里找同名歌曲，按相似度倒序返回前若干个候选 */
 export async function findAlternatives(track) {
+  const pref = new Set(store.settings.prefSources || []);
   const enabled = (store.settings.enabledSources || [])
-    .filter((s) => s !== track.source && SOURCE_IMPL[s] && !AGG_SOURCE_KEYS.includes(s));
+    .filter((s) => s !== track.source && SOURCE_IMPL[s] && !AGG_SOURCE_KEYS.includes(s))
+    .sort((a, b) => (pref.has(a) ? 0 : 1) - (pref.has(b) ? 0 : 1));
   const query = `${track.name} ${String(track.artist).split('/')[0]}`.trim();
   const scored = [];
 
@@ -805,7 +836,12 @@ export async function findAlternatives(track) {
     } catch { /* 换下一个源 */ }
   }
 
-  scored.sort((a, b) => b.__score - a.__score);
+  // 偏好音源加一点点分：同分或略低时优先选它，但压不过明显更准的匹配
+  scored.sort((a, b) => {
+    const pa = pref.has(a.source) ? 0.08 : 0;
+    const pb = pref.has(b.source) ? 0.08 : 0;
+    return (b.__score + pb) - (a.__score + pa);
+  });
   // 同一音源最多保留 2 个候选，避免连续在同一个源上失败
   const perSource = new Map();
   const out = [];

@@ -16,6 +16,11 @@ import { jobs } from './core/jobs.js';
 import { openNowPlaying, closeNowPlaying, isOpen as npIsOpen } from './views/nowplaying.js';
 import { showArtistBio } from './ui/artistbio.js';
 import { resolveTrack } from './api/sources.js';
+import { initUpdateCheck } from './api/update.js';
+import { verifyAccount } from './views/accounts.js';
+import { taskbar } from './ui/taskbar.js';
+import { playSplash } from './ui/splash.js';
+import { deskLyrics } from './ui/desklyrics.js';
 
 import * as discoverView from './views/discover.js';
 import * as searchView from './views/search.js';
@@ -64,7 +69,7 @@ function parseHash() {
   if (first === 'recent') return { name: 'library', params: { tab: 'recent' } };
   if (first === 'accounts') return { name: 'accounts', params: query };
   if (first === 'transfer') return { name: 'transfer', params: query };
-  if (first === 'settings') return { name: 'settings', params: query };
+  if (first === 'settings') return { name: 'settings', params: { ...query, page: second || '' } };
   if (first === 'sponsor') return { name: 'sponsor', params: query };
 
   return { name: 'discover', params: {} };
@@ -549,6 +554,22 @@ async function downloadTrack(track) {
 
     if (window.BMFMAndroid?.download) {
       window.BMFMAndroid.download(url, filename);
+      // 记进下载索引：下次播这首就直接走本地文件
+      const list = (store.settings.downloads || []).filter((d) => d.key !== track.key);
+      list.push({
+        key: track.key,
+        id: track.id,
+        source: track.source,
+        name: track.name,
+        artist: track.artist,
+        album: track.album || '',
+        duration: track.duration || 0,
+        cover: track.cover || '',
+        file: filename,
+        savedAt: Date.now(),
+      });
+      store.setSettings({ downloads: list.slice(-500) });
+      store.flush();
       toastSuccess('已加入下载队列，在通知栏查看进度');
       return;
     }
@@ -949,7 +970,72 @@ function initNotification() {
 /* ==========================================================================
    启动
    ========================================================================== */
+/**
+ * 启动时把已绑定的平台账号挨个验一遍。
+ * 登录态过期时各平台一般是返回未登录而不是报错，所以这里只看 valid 字段。
+ */
+async function checkBoundAccounts() {
+  const accounts = store.state.accounts || {};
+  const keys = Object.keys(accounts).filter((k) => accounts[k]?.cookie);
+  if (!keys.length) return;
+
+  const bad = [];
+  for (const key of keys) {
+    try {
+      const r = await verifyAccount(key, accounts[key].cookie);
+      if (r && r.ok === false) bad.push(key);
+    } catch {
+      /* 网络问题不算失效，别误报 */
+    }
+  }
+  if (!bad.length) return;
+
+  const names = bad.map((k) => SOURCES[k]?.name || k).join('、');
+  openDialog({
+    title: '账号登录已失效',
+    bodyHTML: `<p style="margin:0;color:var(--on-surface-muted);line-height:1.7">
+      ${esc(names)} 的登录凭证已过期或失效，重新登录后才能继续读取歌单和提升音质。
+    </p>`,
+    actions: [
+      { label: '稍后', variant: 'text', onClick: () => closeDialog() },
+      { label: '去重新登录', variant: 'filled', onClick: () => {
+        closeDialog();
+        location.hash = '#/accounts';
+      } },
+    ],
+  });
+}
+
+/**
+ * 用 JS 实测可视高度写进 --app-h。
+ *
+ * 华为等 WebView 里 100dvh 不认、100vh 又会按「最大视口」算，
+ * 结果 .app 高度是错的：shell 撑不出高度，body 又是 overflow:hidden，
+ * 整页就变成了「滑不动」。这一行彻底绕开 vh 语义。
+ */
+function fixAppHeight() {
+  const apply = () => {
+    const h = window.innerHeight || document.documentElement.clientHeight;
+    if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+  };
+  apply();
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', () => setTimeout(apply, 120));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', apply);
+}
+
+/** 低端机减负：少跑动画、关掉全屏模糊 */
+function detectLowEnd() {
+  try {
+    const cores = navigator.hardwareConcurrency || 8;
+    const mem = navigator.deviceMemory || 8;
+    if (cores <= 4 || mem <= 3) document.documentElement.classList.add('low-end');
+  } catch { /* 读不到就当好机器 */ }
+}
+
 function boot() {
+  fixAppHeight();
+  detectLowEnd();
   hydrateIcons(document);   // 先把静态 HTML 里的 data-icon 换成 SVG
 
   // APK 里 WebView 的原生桥可能晚于模块执行，这里补读一次历史数据
@@ -963,6 +1049,9 @@ function boot() {
   initLocalFiles();
   initHotkeys();
   initJobs();
+  taskbar.init();
+  playSplash();
+  if (store.settings.deskLyrics) deskLyrics.enable();
   initBackBridge();
   initNotification();
   initGestureResume();
@@ -997,12 +1086,18 @@ function boot() {
   document.dispatchEvent(new CustomEvent('route-change'));
   route();
 
-  // Service Worker（PWA 安装能力）
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => { /* 静默 */ });
-    });
-  }
+  // 检查更新（12 小时内只查一次）
+  initUpdateCheck();
+
+  // 启动时校验一次已绑定的账号，过期了就提醒重登
+  setTimeout(() => checkBoundAccounts(), 6000);
+
+  // 更新下载进度回调
+  window.__bmfmUpdateProgress = (pct) => {
+    if (pct >= 100) return;
+    const t = window.__bmfmUpdateTask;
+    if (t && typeof t.progress === 'function') t.progress(pct, `更新下载中 ${pct}%`);
+  };
 
   // 首次提示
   if (!localStorage.getItem('bmfm:welcomed')) {
