@@ -50,8 +50,8 @@ const MIRRORS = [
   (raw) => `https://raw.gitmirror.com/${REPO}/${BRANCH}/${raw}`,
 ];
 
-const CURRENT_CODE = 160;
-const CURRENT_NAME = '1.6.0';
+const CURRENT_CODE = 161;
+const CURRENT_NAME = '1.2.2';
 
 /* ------------------------------------------------------------------ */
 

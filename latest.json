@@ -1,8 +1,8 @@
 {
-  "version": "1.6.0",
-  "versionCode": 160,
-  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.6.0/BMFreeMusic-1.6.0.apk",
+  "version": "1.2.2",
+  "versionCode": 161,
+  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.2.2/BMFreeMusic-1.2.2.apk",
   "size": 634828,
-  "sha256": "c0cca7995ce946021e9da552625e4a951df782da589163604e11410a69208237",
+  "sha256": "f23024979425c7b8740f515a057b2258dcec34405ab5c5df18b595b67f01787e",
   "notes": "桌面歌词不再遮挡下层应用的点击（默认完全不接收触摸）\n桌面歌词新增颜色、透明度可调，以及可拖动开关\n检查更新扩充 GitHub 代理与直连镜像列表\n修复歌单解析 list is not iterable"
 }
