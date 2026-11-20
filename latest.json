@@ -1,8 +1,8 @@
 {
-  "version": "1.4.0",
-  "versionCode": 140,
-  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.4.0/BMFreeMusic-1.4.0.apk",
+  "version": "1.5.0",
+  "versionCode": 150,
+  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.5.0/BMFreeMusic-1.5.0.apk",
   "size": 634828,
-  "sha256": "875b66f570682bd40339c1f402926fa4476fddaff8ab16ad7437842fd7c35761",
-  "notes": "修复顶部任务进度条与搜索栏重叠\n桌面歌词：可拖动、只显示当前一句、无背景、软件在前台时自动隐藏，并修复偶发崩溃\n检查更新前先探测公共 GitHub 加速代理连通性"
+  "sha256": "99907e3d373711aec4e2b033f6834c6fc276da477754792b9ef5d3a4f823259c",
+  "notes": "修复歌单解析报错 list is not iterable\n任务进度条不再压住顶栏\n桌面歌词可拖动/单行无背景/前台隐藏并修复崩溃\n检查更新先探测公共 GitHub 加速代理"
 }

@@ -35,8 +35,8 @@ const PROXIES = [
   'https://ghproxy.net/',
 ];
 
-const CURRENT_CODE = 140;
-const CURRENT_NAME = '1.4.0';
+const CURRENT_CODE = 150;
+const CURRENT_NAME = '1.5.0';
 
 /* ------------------------------------------------------------------ */
 

@@ -687,18 +687,24 @@ export async function getPlaylist(source, id) {
   const impl = SOURCE_IMPL[source];
   if (!impl) throw new Error(`未知音源 ${source}`);
   if (!impl.playlist) throw new Error(`${SOURCES[source]?.name || source} 暂不支持歌单读取`);
-  const list = await impl.playlist(id);
+  // 各平台的 playlist() 返回的是歌单对象（{ name, cover, tracks: [...] }）
+  const pl = await impl.playlist(id);
+  // 万一某个源只返回了数组，也照样兼容
+  if (Array.isArray(pl)) {
+    return { id: String(id), source, name: '', desc: '', cover: '', creator: '', trackCount: pl.length, tracks: pl };
+  }
+  const rawTracks = Array.isArray(pl?.tracks) ? pl.tracks : [];
   // 同一首歌在歌单里重复出现时去掉重复项
   const seen = new Set();
   const out = [];
-  for (const t of list) {
+  for (const t of rawTracks) {
     if (!t) continue;
     const k = t.key || `${t.source}:${t.id}`;
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(t);
   }
-  return out;
+  return { ...pl, tracks: out, trackCount: pl.trackCount || out.length };
 }
 
 /**
