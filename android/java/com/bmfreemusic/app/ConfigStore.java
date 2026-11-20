@@ -43,21 +43,37 @@ public class ConfigStore {
        候选路径（按优先级）
        ------------------------------------------------------------------ */
     private File[] candidates() {
-        File[] list = new File[3];
+        File[] list = new File[4];
 
         // 1. 手机存储/BMFreeMusic
         File sd = externalRoot();
         list[0] = sd == null ? null : new File(new File(sd, DIR_NAME), FILE_NAME);
 
-        // 2. 应用专属外部目录（Android 11+ 无需权限也能写）
-        File extFiles = ctx.getExternalFilesDir(null);
-        list[1] = extFiles == null ? null : new File(new File(extFiles, DIR_NAME), FILE_NAME);
+        // 2. 公共文档目录（Android 11+ 应用也能直接写，无需任何权限）
+        File docs = publicDir("Documents");
+        list[1] = docs == null ? null : new File(new File(docs, DIR_NAME), FILE_NAME);
 
-        // 3. 应用私有目录
+        // 3. 应用专属外部目录
+        File extFiles = ctx.getExternalFilesDir(null);
+        list[2] = extFiles == null ? null : new File(new File(extFiles, DIR_NAME), FILE_NAME);
+
+        // 4. 应用私有目录
         File files = ctx.getFilesDir();
-        list[2] = files == null ? null : new File(new File(files, DIR_NAME), FILE_NAME);
+        list[3] = files == null ? null : new File(new File(files, DIR_NAME), FILE_NAME);
 
         return list;
+    }
+
+    /** 公共目录（Documents / Music 等），拿不到就返回 null */
+    private File publicDir(String type) {
+        try {
+            File d = Environment.getExternalStoragePublicDirectory(type);
+            if (d == null) return null;
+            if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) return null;
+            return d;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private File externalRoot() {

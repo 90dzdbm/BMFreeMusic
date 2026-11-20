@@ -207,8 +207,24 @@ public class LocalServer {
             writeText(out, 400, "bad name");
             return;
         }
-        File dir = new File(new File(Environment.getExternalStorageDirectory(), "BMFreeMusic"), name);
-        File f = dir.exists() ? dir : null;
+        // 依次尝试：手机存储/BMFreeMusic → 公共文档目录 → 应用专属目录 → 应用私有目录
+        File f = null;
+        try {
+            File sd = Environment.getExternalStorageDirectory();
+            if (sd != null) {
+                File alt = new File(new File(sd, "BMFreeMusic"), name);
+                if (alt.exists()) f = alt;
+            }
+        } catch (Throwable ignored) { }
+        if (f == null) {
+            try {
+                File docs = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                if (docs != null) {
+                    File alt = new File(new File(docs, "BMFreeMusic"), name);
+                    if (alt.exists()) f = alt;
+                }
+            } catch (Throwable ignored) { }
+        }
         if (f == null) {
             File ext = ctx.getExternalFilesDir(null);
             if (ext != null) {
