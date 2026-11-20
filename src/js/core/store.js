@@ -76,6 +76,9 @@ const DEFAULT_STATE = {
     npFontSize: 16,
     // 桌面歌词开关
     deskLyrics: false,
+    deskLyricsColor: '#ffffff',
+    deskLyricsAlpha: 0.9,
+    deskLyricsDraggable: false,
     // 开屏页
     splashEnabled: false,
     splashMedia: '',        // 图片或视频的 URL/文件名

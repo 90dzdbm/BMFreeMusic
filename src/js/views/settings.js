@@ -265,6 +265,41 @@ async function renderAppearance(root) {
             </label>
           </div>
         </div>
+
+        <div class="setting-row">
+          <div class="setting-row__text">
+            <div class="setting-row__title">歌词颜色</div>
+            <div class="setting-row__desc">桌面歌词文字颜色</div>
+          </div>
+          <div class="setting-row__control">
+            <input type="color" id="deskColor" value="${esc(String(s.deskLyricsColor || '#ffffff'))}"
+                   style="width:52px;height:34px;border:1px solid var(--outline);border-radius:8px;background:none;padding:2px">
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-row__text">
+            <div class="setting-row__title">歌词透明度</div>
+            <div class="setting-row__desc" id="deskAlphaDesc">当前 ${Math.round((Number(s.deskLyricsAlpha ?? 0.9)) * 100)}%</div>
+          </div>
+          <div class="setting-row__control" style="min-width:180px">
+            <input class="slider" type="range" id="deskAlpha" min="10" max="100" step="5"
+                   value="${Math.round((Number(s.deskLyricsAlpha ?? 0.9)) * 100)}">
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-row__text">
+            <div class="setting-row__title">歌词可拖动</div>
+            <div class="setting-row__desc" id="deskDragDesc">${s.deskLyricsDraggable ? '可拖动（此时会挡住下层应用的点击）' : '关闭（不接收触摸，绝不挡点击）'}</div>
+          </div>
+          <div class="setting-row__control">
+            <label class="switch">
+              <input type="checkbox" id="swDeskDraggable" ${s.deskLyricsDraggable ? 'checked' : ''}>
+              <span class="switch__track"><span class="switch__thumb"></span></span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -363,7 +398,34 @@ async function renderAppearance(root) {
       ?.replaceChildren(`当前 ${v} px`);
   });
 
-  /* ---- 桌面歌词 ---- */
+  /* ---- 桌面歌词：颜色 / 透明度 / 可拖动 ---- */
+  const dc = root.querySelector('#deskColor');
+  dc?.addEventListener('input', (e) => {
+    store.setSettings({ deskLyricsColor: e.target.value });
+    deskLyrics.applyStyle?.();
+  });
+
+  const da = root.querySelector('#deskAlpha');
+  if (da) {
+    const v0 = Math.round((Number(s.deskLyricsAlpha ?? 0.9)) * 100);
+    da.style.setProperty('--val', `${(v0 - 10) / 90 * 100}%`);
+    da.addEventListener('input', (e) => {
+      const v = Number(e.target.value);
+      e.target.style.setProperty('--val', `${(v - 10) / 90 * 100}%`);
+      store.setSettings({ deskLyricsAlpha: v / 100 });
+      root.querySelector('#deskAlphaDesc')?.replaceChildren(`当前 ${v}%`);
+      deskLyrics.applyStyle?.();
+    });
+  }
+
+  root.querySelector('#swDeskDraggable')?.addEventListener('change', (e) => {
+    const on = e.target.checked;
+    store.setSettings({ deskLyricsDraggable: on });
+    root.querySelector('#deskDragDesc')?.replaceChildren(
+      on ? '可拖动（此时会挡住下层应用的点击）' : '关闭（不接收触摸，绝不挡点击）');
+    deskLyrics.applyStyle?.();
+  });
+
   root.querySelector('#swDeskLyrics')?.addEventListener('change', (e) => {
     const on = e.target.checked;
     if (on) {
@@ -722,7 +784,7 @@ async function renderAbout(root) {
           <div class="about-card" style="border:none;padding:0;width:100%">
             <img src="./assets/icon-192.png" alt="" style="border-radius:14px;box-shadow:var(--shadow-1)">
             <div style="flex:1;min-width:0">
-              <div style="font:var(--text-h3);margin-bottom:4px">BM Free Music <span style="color:var(--on-surface-muted);font-weight:400;font-size:13px">v1.5.0</span></div>
+              <div style="font:var(--text-h3);margin-bottom:4px">BM Free Music <span style="color:var(--on-surface-muted);font-weight:400;font-size:13px">v1.6.0</span></div>
               <p style="color:var(--on-surface-muted);font-size:13px;line-height:1.7">
                 多平台聚合音乐播放器 · Material 3 设计语言
               </p>

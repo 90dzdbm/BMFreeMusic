@@ -21,22 +21,37 @@ const RAW_URL = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/latest.json
 const FALLBACK_URL = `https://github.com/${REPO}/raw/${BRANCH}/latest.json`;
 
 /**
- * 公共 GitHub 加速代理，按本机实测可用性排序。
- * 2026-11-20 实测：
- *   gh-proxy.com  raw 200 且带 CORS 头，最稳，放第一个
- *   ghproxy.cn    能通但有时返回 HTML 错误页（靠 JSON.parse 兜掉）
- *   ghfast.top / ghproxy.cc / ghproxy.net 时通时不通
+ * 公共 GitHub 加速代理（前缀型：代理根地址 + raw 路径）。
+ * 2026-11-20 本机实测 raw.githubusercontent.com/.../README.md：
+ *   githubproxy.cc / gh-proxy.com / ghproxy.net  → 200 内容正确
+ *   ghfast.top / gh.llkk.cc / hub.gitmirror.com / gh.akams.cn → 连不上
+ * 排序按实测稳定性来，探不通会自动跳到下一个。
  */
 const PROXIES = [
   'https://gh-proxy.com/',
-  'https://ghproxy.cn/',
-  'https://ghfast.top/',
-  'https://ghproxy.cc/',
+  'https://githubproxy.cc/',
   'https://ghproxy.net/',
+  'https://ghfast.top/',
+  'https://gh.llkk.cc/',
+  'https://hub.gitmirror.com/',
+  'https://gh.akams.cn/',
+  'https://ghproxy.cn/',
+  'https://ghproxy.cc/',
 ];
 
-const CURRENT_CODE = 150;
-const CURRENT_NAME = '1.5.0';
+/**
+ * 直连型镜像：不能拼前缀，得用自己的路径模板。
+ * 实测 bgithub.xyz / gitclone.com 本身在本机连不通，
+ * 但保留在列表里 —— 不同网络环境可用性不一样，探不通就自动跳过。
+ */
+const MIRRORS = [
+  (raw) => `https://bgithub.xyz/${REPO}/raw/${BRANCH}/${raw}`,
+  (raw) => `https://gitclone.com/github.com/${REPO}/raw/${BRANCH}/${raw}`,
+  (raw) => `https://raw.gitmirror.com/${REPO}/${BRANCH}/${raw}`,
+];
+
+const CURRENT_CODE = 160;
+const CURRENT_NAME = '1.6.0';
 
 /* ------------------------------------------------------------------ */
 
@@ -90,6 +105,16 @@ async function fetchLatest(onStep) {
       const data = await fetchJSON(p + RAW_URL, 6000);
       if (data && data.version) return { data, base: p, via: 'proxy' };
     } catch { /* 换下一个代理 */ }
+  }
+  // 前缀代理全挂了，再试直连型镜像
+  for (const mk of MIRRORS) {
+    try {
+      const url = mk('latest.json');
+      const host = url.replace(/^https?:\/\//, '').split('/')[0];
+      if (onStep) onStep(`正在尝试镜像 ${host}`);
+      const data = await fetchJSON(url, 7000);
+      if (data && data.version) return { data, base: '', via: 'mirror' };
+    } catch { /* 换下一个镜像 */ }
   }
   try {
     if (onStep) onStep('代理不可用，尝试直连 GitHub');

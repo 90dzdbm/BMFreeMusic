@@ -1,8 +1,8 @@
 {
-  "version": "1.5.0",
-  "versionCode": 150,
-  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.5.0/BMFreeMusic-1.5.0.apk",
+  "version": "1.6.0",
+  "versionCode": 160,
+  "apk": "https://github.com/90dzdbm/BMFreeMusic/releases/download/v1.6.0/BMFreeMusic-1.6.0.apk",
   "size": 634828,
-  "sha256": "99907e3d373711aec4e2b033f6834c6fc276da477754792b9ef5d3a4f823259c",
-  "notes": "修复歌单解析报错 list is not iterable\n任务进度条不再压住顶栏\n桌面歌词可拖动/单行无背景/前台隐藏并修复崩溃\n检查更新先探测公共 GitHub 加速代理"
+  "sha256": "c0cca7995ce946021e9da552625e4a951df782da589163604e11410a69208237",
+  "notes": "桌面歌词不再遮挡下层应用的点击（默认完全不接收触摸）\n桌面歌词新增颜色、透明度可调，以及可拖动开关\n检查更新扩充 GitHub 代理与直连镜像列表\n修复歌单解析 list is not iterable"
 }

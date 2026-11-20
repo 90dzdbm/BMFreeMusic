@@ -348,6 +348,20 @@ public class MainActivity extends Activity {
             return s != null;
         }
 
+        /** 桌面歌词样式：颜色（#RRGGBB）与不透明度（0~1） */
+        @JavascriptInterface
+        public void setDeskLyricsStyle(String color, double alpha) {
+            LyricsService s = LyricsService.instance;
+            if (s != null) s.setStyle(color, (float) alpha);
+        }
+
+        /** 桌面歌词是否可拖动（可拖动=窗口接收触摸；关闭=完全不挡点击） */
+        @JavascriptInterface
+        public void setDeskLyricsDraggable(boolean can) {
+            LyricsService s = LyricsService.instance;
+            if (s != null) s.setTouchable(can);
+        }
+
         /** 当前配置文件的实际路径，设置页里给用户看 */
         @JavascriptInterface
         public String configPath() {

@@ -15,6 +15,7 @@
  */
 
 import { player } from '../core/player.js';
+import { store } from '../core/store.js';
 
 let enabled = false;
 let lastIdx = -1;
@@ -53,6 +54,31 @@ function push() {
   }
 }
 
+/** 浏览器降级小窗也套用颜色/透明度 */
+function applyDomStyle() {
+  if (!domNode) return;
+  const st = store.settings || {};
+  const color = st.deskLyricsColor || '#ffffff';
+  const alpha = Number(st.deskLyricsAlpha ?? 0.9);
+  domNode.style.color = color;
+  domNode.style.opacity = String(alpha);
+}
+
+/** 把颜色/透明度/可拖动同步给原生悬浮窗 */
+export function applyDeskLyricsStyle() {
+  const b = bridge();
+  if (!b) return;
+  const st = store.settings || {};
+  try {
+    b.setDeskLyricsStyle?.(st.deskLyricsColor || '#ffffff',
+      Number(st.deskLyricsAlpha ?? 0.9));
+  } catch { /* noop */ }
+  try {
+    b.setDeskLyricsDraggable?.(!!st.deskLyricsDraggable);
+  } catch { /* noop */ }
+  applyDomStyle();
+}
+
 function onTime() {
   const idx = player.currentLyricIndex();
   if (idx === lastIdx) return;
@@ -69,6 +95,7 @@ function mountDom() {
   domNode.innerHTML = `<div class="desklyrics__cur"></div>`;
   document.body.appendChild(domNode);
   syncDomVisibility();
+  applyDomStyle();
 }
 
 function unmountDom() {
@@ -131,6 +158,7 @@ export const deskLyrics = {
     offs.push(player.on('lyric', () => { lastIdx = -1; push(); }));
     offs.push(player.on('track', () => { lastIdx = -1; push(); }));
     document.addEventListener('visibilitychange', syncDomVisibility);
+    applyDeskLyricsStyle();
     push();
     return true;
   },
@@ -152,4 +180,7 @@ export const deskLyrics = {
     if (enabled) { this.disable(); return false; }
     return this.enable();
   },
+
+  /** 设置变化时重新套用样式 */
+  applyStyle: applyDeskLyricsStyle,
 };

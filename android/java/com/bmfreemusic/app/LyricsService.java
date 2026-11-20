@@ -52,6 +52,12 @@ public class LyricsService extends Service {
     private boolean appForeground = true;
     private boolean userEnabled = false;
 
+    /** 歌词颜色（#RRGGBB）与不透明度（0~1） */
+    private int textColor = Color.WHITE;
+    private float textAlpha = 1f;
+    /** 可拖动模式：开启后窗口才接收触摸事件（否则会挡住其它应用的点击） */
+    private boolean touchable = false;
+
     private int downX, downY, startX, startY;
     private boolean dragging = false;
     private int touchSlop;
@@ -184,12 +190,13 @@ public class LyricsService extends Service {
 
                 root = new TextView(this);
                 tvCurrent = (TextView) root;
-                tvCurrent.setTextColor(Color.WHITE);
+                tvCurrent.setTextColor(textColor);
                 tvCurrent.setTextSize(16);
                 tvCurrent.setGravity(Gravity.CENTER);
                 tvCurrent.setMaxLines(2);
                 tvCurrent.setSingleLine(false);
                 // 无背景，只加阴影保证在浅色背景上也看得清
+                applyTextAlpha();
                 tvCurrent.setShadowLayer(dp(6), 0f, dp(1), Color.argb(220, 0, 0, 0));
                 tvCurrent.setPadding(dp(14), dp(8), dp(14), dp(8));
                 tvCurrent.setText("♪");
@@ -244,7 +251,11 @@ public class LyricsService extends Service {
                         WindowManager.LayoutParams.WRAP_CONTENT,
                         WindowManager.LayoutParams.WRAP_CONTENT,
                         overlayType(),
+                        // 默认 FLAG_NOT_TOUCHABLE：歌词窗不接收任何触摸事件，
+                        // 盖在别的应用上面也不会挡住人家点按钮。
+                        // 用户在设置里打开「可拖动」后，才切成可触摸模式。
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | (touchable ? 0 : WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
                                 | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                         android.graphics.PixelFormat.TRANSLUCENT);
 
@@ -265,6 +276,28 @@ public class LyricsService extends Service {
                 tvCurrent = null;
             }
         }
+    }
+
+    /** 切换「可拖动」：可拖动 = 窗口可触摸；否则完全不接收触摸 */
+    public void setTouchable(final boolean can) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (touchable == can) return;
+                touchable = can;
+                if (!attached || root == null || wm == null) return;
+                try {
+                    if (root.getWindowToken() == null) return;
+                    WindowManager.LayoutParams lp = (WindowManager.LayoutParams) root.getLayoutParams();
+                    if (can) {
+                        lp.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+                    } else {
+                        lp.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+                    }
+                    wm.updateViewLayout(root, lp);
+                } catch (Throwable ignored) { }
+            }
+        });
     }
 
     private void detach() {
@@ -318,6 +351,54 @@ public class LyricsService extends Service {
                 } catch (Throwable ignored) { }
             }
         });
+    }
+
+    /**
+     * 设置歌词颜色与不透明度。
+     * @param color 形如 "#RRGGBB"，传 null / 空表示保持不变
+     * @param alpha 0~1，传负数表示保持不变
+     */
+    public void setStyle(final String color, final float alpha) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (color != null && color.length() > 0) {
+                        int c = parseColor(color);
+                        if (c != -1) textColor = c;
+                    }
+                    if (alpha >= 0f && alpha <= 1f) textAlpha = alpha;
+                    if (tvCurrent != null) {
+                        tvCurrent.setTextColor(textColor);
+                        applyTextAlpha();
+                    }
+                } catch (Throwable ignored) { }
+            }
+        });
+    }
+
+    private void applyTextAlpha() {
+        if (tvCurrent == null) return;
+        int a = (int) Math.max(0, Math.min(255, Math.round(255 * textAlpha)));
+        tvCurrent.setAlpha(textAlpha);
+        tvCurrent.setTextColor(Color.argb(a, Color.red(textColor), Color.green(textColor), Color.blue(textColor)));
+    }
+
+    /** 支持 #RGB / #RRGGBB / #AARRGGBB */
+    static int parseColor(String s) {
+        try {
+            String v = s.trim();
+            if (v.startsWith("#")) v = v.substring(1);
+            if (v.length() == 3) {
+                int r = Integer.parseInt(v.substring(0, 1), 16);
+                int g = Integer.parseInt(v.substring(1, 2), 16);
+                int b = Integer.parseInt(v.substring(2, 3), 16);
+                return Color.rgb(r * 17, g * 17, b * 17);
+            }
+            if (v.length() == 6) return Color.parseColor("#" + v);
+            if (v.length() == 8) return (int) Long.parseLong(v, 16);
+        } catch (Throwable ignored) { }
+        return -1;
     }
 
     /** 前台/后台切换时由 Activity 调用 */
